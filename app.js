@@ -15,6 +15,7 @@ const state = {
   latestAnalysis: null,
   latestAnalysisMeta: null,
   selectedFileName: "",
+  selectedContent: null,
   loading: false,
 };
 
@@ -61,6 +62,7 @@ async function loadAppState() {
 
 function setView(view) {
   state.view = view;
+  if (view !== "content") state.selectedContent = null;
   navButtons.forEach((button) => button.classList.toggle("active", button.dataset.view === view));
   render();
 }
@@ -326,6 +328,9 @@ function renderContent() {
   const content = data?.content || { guides: [], articles: [], cases: [], event: null };
   const guides = content.guides || [];
   const articles = content.articles || [];
+  if (state.selectedContent) {
+    return renderContentDetail(state.selectedContent);
+  }
   return `
     <section class="stack">
       <div class="hero-card">
@@ -370,7 +375,10 @@ function renderGuideCard(guide) {
       <h3>${guide.title}</h3>
       <p class="muted">${guide.summary}</p>
       <div class="tag-row">${(guide.keywords || []).map((tag) => `<span>${tag}</span>`).join("")}</div>
-      <a class="text-link" href="${guide.url}" target="_blank" rel="noreferrer">阅读原站指南</a>
+      <div class="content-actions">
+        <button class="text-link" type="button" data-content-kind="guide" data-content-id="${guide.originPath}">查看详情</button>
+        <a class="text-link secondary-link" href="${guide.url}" target="_blank" rel="noreferrer">原站</a>
+      </div>
     </article>
   `;
 }
@@ -387,8 +395,66 @@ function renderArticleCard(article) {
       <p class="muted">${article.summary}</p>
       <div class="tag-row">${(article.tags || []).slice(0, 4).map((tag) => `<span>${tag}</span>`).join("")}</div>
       <p class="source-line">${article.source}</p>
-      <a class="text-link" href="${article.url}" target="_blank" rel="noreferrer">阅读原站解读</a>
+      <div class="content-actions">
+        <button class="text-link" type="button" data-content-kind="article" data-content-id="${article.originPath}">查看详情</button>
+        <a class="text-link secondary-link" href="${article.url}" target="_blank" rel="noreferrer">原站</a>
+      </div>
     </article>
+  `;
+}
+
+function renderContentDetail(selected) {
+  const item = selected.item;
+  const isGuide = selected.kind === "guide";
+  return `
+    <section class="stack">
+      <button class="back-button" type="button" data-content-back>返回科普</button>
+      <article class="detail-card stack">
+        <div class="article-meta">
+          <span class="tag">${isGuide ? "指南专题" : item.evidence || "研究解读"}</span>
+          <span>${isGuide ? item.label : item.date || ""}</span>
+        </div>
+        <h2>${item.title}</h2>
+        ${item.subtitle ? `<p class="article-subtitle">${item.subtitle}</p>` : ""}
+        <p class="muted">${item.summary}</p>
+        <div class="tag-row">${(isGuide ? item.keywords || [] : item.tags || []).map((tag) => `<span>${tag}</span>`).join("")}</div>
+      </article>
+      ${isGuide ? renderGuideDetail(item) : renderArticleDetail(item)}
+      <div class="card">
+        <h2>证据边界</h2>
+        <p class="muted">这部分内容用于理解方向和设计个人生活实验，不替代医生诊断、治疗和用药建议。已有慢病、怀孕、低血糖风险高或指标明显异常时，应先咨询医生。</p>
+      </div>
+      <a class="primary-button link-button" href="${item.url}" target="_blank" rel="noreferrer">打开原站完整内容</a>
+      ${boundary()}
+    </section>
+  `;
+}
+
+function renderGuideDetail(guide) {
+  const keywords = guide.keywords || [];
+  return `
+    <div class="card">
+      <h2>学习路径</h2>
+      <ul class="content-list">
+        <li>先读核心概念：${guide.summary}</li>
+        <li>再选一个观察指标：${keywords[0] || "餐后反应"}，连续记录 1-2 周。</li>
+        <li>最后只改一个变量：${keywords[1] || "饮食、运动或睡眠"}，观察趋势变化。</li>
+      </ul>
+    </div>
+  `;
+}
+
+function renderArticleDetail(article) {
+  return `
+    <div class="card">
+      <h2>怎么读这篇研究</h2>
+      <ul class="content-list">
+        <li>先看研究人群、时间和来源，不把单篇研究当成通用结论。</li>
+        <li>把结论翻译成一个可执行动作，例如饭后步行、睡眠记录、主食替换或体重/腰围追踪。</li>
+        <li>连续记录 2-4 周，看趋势而不是看单次数字。</li>
+      </ul>
+      <p class="source-line">来源：${article.source}</p>
+    </div>
   `;
 }
 
@@ -397,6 +463,22 @@ function loadingMarkup() {
 }
 
 function bindViewEvents() {
+  document.querySelectorAll("[data-content-id]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const content = state.appState?.content || { guides: [], articles: [] };
+      const collection = button.dataset.contentKind === "guide" ? content.guides : content.articles;
+      const item = collection.find((entry) => entry.originPath === button.dataset.contentId);
+      if (!item) return;
+      state.selectedContent = { kind: button.dataset.contentKind, item };
+      render();
+    });
+  });
+  document.querySelectorAll("[data-content-back]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.selectedContent = null;
+      render();
+    });
+  });
   document.querySelectorAll("[data-go]").forEach((button) => {
     button.addEventListener("click", () => setView(button.dataset.go));
   });

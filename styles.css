@@ -810,9 +810,51 @@ button {
   min-height: 34px;
   align-items: center;
   margin-top: 12px;
+  border: 0;
+  background: transparent;
   color: var(--teal-strong);
+  padding: 0;
   font-size: 0.84rem;
   font-weight: 800;
+  text-decoration: none;
+}
+
+.secondary-link {
+  color: var(--quiet);
+}
+
+.content-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.detail-card {
+  padding: 16px;
+  background: linear-gradient(135deg, rgba(14, 107, 103, 0.10), rgba(255, 255, 255, 0.96));
+}
+
+.detail-card h2 {
+  margin: 0;
+  font-size: 1.18rem;
+  line-height: 1.25;
+}
+
+.back-button {
+  justify-self: start;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  color: var(--teal-strong);
+  padding: 0 12px;
+  font-weight: 800;
+}
+
+.link-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   text-decoration: none;
 }
 

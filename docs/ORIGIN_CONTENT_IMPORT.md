@@ -39,7 +39,7 @@
 
 - 新增 `content.guides`，用于展示 6 个原站 Topic clusters。
 - 扩展 `content.articles`，从 3 篇占位文章改成 9 篇原站研究解读。
-- 每条内容保留 `originPath` 和 `url`，当前前端点击后打开原站详情页。
+- 每条内容保留 `originPath` 和 `url`，前端提供 H5 内详情视图，并保留原站完整内容入口。
 - 原站个别 SEO 关键词含较强结果暗示，录入到产品页时改为更稳妥的“改善/管理/观察”表达。
 - API `/api/content` 和 `/api/app-state` 继续返回静态内容，不引入数据库迁移。
 
