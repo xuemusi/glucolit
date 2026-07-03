@@ -323,15 +323,30 @@ function renderCompanion() {
 
 function renderContent() {
   const data = state.appState;
-  const content = data?.content || { articles: [], cases: [], event: null };
+  const content = data?.content || { guides: [], articles: [], cases: [], event: null };
+  const guides = content.guides || [];
+  const articles = content.articles || [];
   return `
     <section class="stack">
       <div class="hero-card">
         <p class="eyebrow">科普 / 社区</p>
-        <h2>可信内容和打卡样例</h2>
-        <p class="muted">静态证明未来社区方向，不做发帖评论。</p>
+        <h2>原站社区内容库</h2>
+        <p class="muted">已从原站录入 ${guides.length} 个指南专题和 ${articles.length} 篇研究解读。当前先做内容阅读入口，不做发帖评论。</p>
       </div>
-      ${content.articles.map((article) => `<article class="article-card"><span class="tag">${article.source}</span><h3>${article.title}</h3><p class="muted">${article.summary}</p></article>`).join("")}
+      <div class="content-section">
+        <div class="section-heading">
+          <p class="eyebrow">Topic clusters</p>
+          <h2>指南专题</h2>
+        </div>
+        <div class="content-grid">${guides.map(renderGuideCard).join("")}</div>
+      </div>
+      <div class="content-section">
+        <div class="section-heading">
+          <p class="eyebrow">Latest research notes</p>
+          <h2>研究解读</h2>
+        </div>
+        <div class="content-grid">${articles.map(renderArticleCard).join("")}</div>
+      </div>
       <div class="card">
         <h2>用户案例</h2>
         <ul class="content-list">${content.cases.map((item) => `<li>${item}</li>`).join("")}</ul>
@@ -342,6 +357,38 @@ function renderContent() {
       </div>
       ${boundary()}
     </section>
+  `;
+}
+
+function renderGuideCard(guide) {
+  return `
+    <article class="article-card guide-card">
+      <div class="article-meta">
+        <span class="tag">${guide.source}</span>
+        <span>${guide.label}</span>
+      </div>
+      <h3>${guide.title}</h3>
+      <p class="muted">${guide.summary}</p>
+      <div class="tag-row">${(guide.keywords || []).map((tag) => `<span>${tag}</span>`).join("")}</div>
+      <a class="text-link" href="${guide.url}" target="_blank" rel="noreferrer">阅读原站指南</a>
+    </article>
+  `;
+}
+
+function renderArticleCard(article) {
+  return `
+    <article class="article-card">
+      <div class="article-meta">
+        <span class="tag">${article.evidence || article.source}</span>
+        <span>${article.date || ""}</span>
+      </div>
+      <h3>${article.title}</h3>
+      <p class="article-subtitle">${article.subtitle || ""}</p>
+      <p class="muted">${article.summary}</p>
+      <div class="tag-row">${(article.tags || []).slice(0, 4).map((tag) => `<span>${tag}</span>`).join("")}</div>
+      <p class="source-line">${article.source}</p>
+      <a class="text-link" href="${article.url}" target="_blank" rel="noreferrer">阅读原站解读</a>
+    </article>
   `;
 }
 
