@@ -1,5 +1,6 @@
 name = "glucolit"
 compatibility_date = "2026-05-03"
+pages_build_output_dir = "."
 
 [[d1_databases]]
 binding = "DB"
