@@ -33,6 +33,8 @@ out/
 .serverless/
 .cache/
 .parcel-cache/
+.output/
+.wrangler/
 
 # Test coverage
 coverage/
@@ -72,6 +74,7 @@ Desktop.ini
 .env.development
 .env.test
 .env.production
+!.env.example
 
 # Temporary files
 tmp/
@@ -79,6 +82,7 @@ temp/
 .tmp/
 .temp/
 
+# Custom ignored files
 .trae
 docs/项目方向GLUCOLIT-V3.pdf
 docs/开发进度.md
