@@ -101,12 +101,25 @@ function renderHome() {
       <div class="focus-card">
         <div class="hero-top">
           <div>
-            <p class="eyebrow">AI 监控中 · ${metrics.dataSource}</p>
-            <h2>今日关注</h2>
+            <p class="eyebrow">今日健康概览 · ${metrics.dataSource}</p>
+            <h2>早上好，今天稳一点</h2>
           </div>
           <span class="status-pill${statusClass}">${statusLabels[daily.status]}</span>
         </div>
-        <p class="focus-copy">餐后峰值偏高叠加睡眠不足。今晚先完成饭后 15-20 分钟步行，不需要重启完整计划。</p>
+        <div class="wellness-score">
+          <div class="score-ring" aria-label="今日状态 82 分">
+            <strong>82</strong>
+            <span>状态良好</span>
+          </div>
+          <div>
+            <p class="focus-copy">餐后峰值偏高叠加睡眠不足。今晚先完成饭后 15-20 分钟步行，不需要重启完整计划。</p>
+            <div class="soft-checks" aria-label="今日记录摘要">
+              <span>饮食 2/3 记录</span>
+              <span>睡眠 7.2 小时</span>
+              <span>运动 30 分钟</span>
+            </div>
+          </div>
+        </div>
         <div class="focus-chart" aria-label="餐后血糖趋势">
           <svg viewBox="0 0 320 126" role="img" aria-label="餐后血糖趋势">
             <path class="focus-band" d="M0 72 H320 V102 H0 Z"></path>
