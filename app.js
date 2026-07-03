@@ -111,8 +111,13 @@ function renderHome() {
           <span class="tag">${daily.date}</span>
         </div>
         <div class="chart" aria-label="血糖趋势">
-          <div class="chart-line"></div>
-          <i class="chart-dot"></i><i class="chart-dot"></i><i class="chart-dot"></i>
+          <svg class="chart-svg" viewBox="0 0 320 132" role="img" aria-label="今日血糖趋势">
+            <path class="chart-band" d="M0 70 H320 V104 H0 Z"></path>
+            <polyline class="chart-polyline" points="18,84 112,48 198,78 292,58"></polyline>
+            <circle class="chart-point coral" cx="112" cy="48" r="6"></circle>
+            <circle class="chart-point amber" cx="198" cy="78" r="6"></circle>
+            <circle class="chart-point mint" cx="292" cy="58" r="6"></circle>
+          </svg>
         </div>
         <div class="metrics-grid">
           <div class="metric-card"><span>餐后峰值</span><strong>${metrics.glucoseTrend[1].value}</strong><span>mmol/L</span></div>
