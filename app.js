@@ -13,6 +13,7 @@ const state = {
   appState: null,
   selectedTool: "report",
   latestAnalysis: null,
+  latestAnalysisMeta: null,
   selectedFileName: "",
   loading: false,
 };
@@ -186,7 +187,7 @@ function renderTools() {
       <div class="scanner-panel stack">
         <div class="panel-header">
           <h2>${scannerTitle(state.selectedTool)}</h2>
-          <span class="risk-pill">失败自动兜底</span>
+          <span class="risk-pill">${state.latestAnalysisMeta?.fallback === false ? "模型分析" : "失败自动兜底"}</span>
         </div>
         <div class="scanner-frame">
           <div class="scanner-line"></div>
@@ -225,10 +226,14 @@ function scannerHint(type) {
 
 function renderAnalysis(analysis) {
   const result = analysis.result;
+  const sourceLabel =
+    state.latestAnalysisMeta?.fallback === false
+      ? `模型分析 · ${state.latestAnalysisMeta.model || "kimi-k2.6"}`
+      : "演示兜底结果";
   if (analysis.type === "report") {
     return `
       <div class="analysis-card stack">
-        <div class="panel-header"><h3>${analysis.title}</h3><span class="risk-pill">${analysis.risk_level}</span></div>
+        <div class="panel-header"><h3>${analysis.title}</h3><span class="risk-pill">${sourceLabel}</span></div>
         <p class="muted">${analysis.summary}</p>
         <div class="field-table">
           ${result.fields.map((field) => `<div><strong>${field.label}</strong><span>${field.value}<br><small>${field.note}</small></span></div>`).join("")}
@@ -240,7 +245,7 @@ function renderAnalysis(analysis) {
   if (analysis.type === "meal") {
     return `
       <div class="analysis-card stack">
-        <div class="panel-header"><h3>${analysis.title}</h3><span class="risk-pill">碳水风险：${result.carbRisk}</span></div>
+        <div class="panel-header"><h3>${analysis.title}</h3><span class="risk-pill">${sourceLabel}</span></div>
         <p class="muted">${analysis.summary}</p>
         <ul class="warning-list">${result.observations.map((item) => `<li>${item}</li>`).join("")}</ul>
         <p class="helper">替换建议：${result.swaps.join("；")}</p>
@@ -249,7 +254,7 @@ function renderAnalysis(analysis) {
   }
   return `
     <div class="analysis-card stack">
-      <div class="panel-header"><h3>${analysis.title}</h3><span class="risk-pill">${result.purchaseAdvice}</span></div>
+      <div class="panel-header"><h3>${analysis.title}</h3><span class="risk-pill">${sourceLabel}</span></div>
       <p class="muted">${analysis.summary}</p>
       <ul class="warning-list">${result.reasons.map((item) => `<li>${item}</li>`).join("")}</ul>
       <p class="helper">替换建议：${result.alternatives.join("；")}</p>
@@ -387,11 +392,19 @@ function bindViewEvents() {
       state.selectedFileName = file.name || "已选择图片";
       state.loading = true;
       render();
+      const image = await fileToBase64(file);
       const data = await api("/api/analyze", {
         method: "POST",
-        body: JSON.stringify({ user_id: state.user.id, type: state.selectedTool }),
+        body: JSON.stringify({
+          user_id: state.user.id,
+          type: state.selectedTool,
+          photo_name: file.name,
+          mime_type: file.type,
+          image_data: image.base64,
+        }),
       });
       state.latestAnalysis = data.analysis;
+      state.latestAnalysisMeta = { fallback: data.fallback, model: data.model, model_error: data.model_error };
       state.loading = false;
       await loadAppState();
       render();
@@ -406,6 +419,7 @@ function bindViewEvents() {
         body: JSON.stringify({ user_id: state.user.id, type: button.dataset.analyze }),
       });
       state.latestAnalysis = data.analysis;
+      state.latestAnalysisMeta = { fallback: data.fallback, model: data.model, model_error: data.model_error };
       state.loading = false;
       await loadAppState();
       render();
@@ -439,6 +453,19 @@ function bindViewEvents() {
       await refresh();
       setView("actions");
     });
+  });
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("图片读取失败"));
+    reader.onload = () => {
+      const value = String(reader.result || "");
+      const [, base64 = ""] = value.split(",");
+      resolve({ base64 });
+    };
+    reader.readAsDataURL(file);
   });
 }
 

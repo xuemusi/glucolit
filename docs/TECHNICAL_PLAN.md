@@ -14,7 +14,7 @@
 核心原则：
 
 - 移动端 H5 优先，桌面端居中展示。
-- 所有 AI 结果都有本地兜底样例，现场不依赖模型稳定性。
+- AI 分析优先调用 Tokendance OpenAI-compatible chat completions，失败时回落到本地兜底样例，现场不依赖模型稳定性。
 - D1 只保存演示必要状态：用户、每日状态、识别结果、行动、打卡。
 - 页面全程使用健康教育和行为支持表达，不做诊断、治疗、用药建议或疗效承诺。
 
@@ -53,6 +53,8 @@
 - 三个场景切换：`报告解读`、`餐盘分析`、`配料表分析`。
 - 提供 scanner 风格拍照/上传入口，支持选择图片；MVP 当前上传后使用稳定样例结果完成分析。
 - 同时提供 `使用样例` 兜底入口，保证路演稳定。
+- 后端模型：`kimi-k2.6`，网关：`https://tokendance.space/gateway/v1`。
+- API Key 存放在 Cloudflare Pages Secret：`TOKENDANCE_API_KEY`，不进入客户端和仓库。
 - 报告解读展示关键指标和“确认无误”校对按钮。
 - 餐盘分析展示餐盘结构、碳水风险、替换建议。
 - 配料表分析展示购买建议、风险原因、食用边界。
@@ -221,15 +223,28 @@ D1 数据库：`glucolit`
 
 ### 4.4 POST `/api/analyze`
 
-触发样例分析。
+触发模型分析，失败时回落样例分析。
 
 输入：
 
 ```json
-{ "user_id": "usr_xxx", "type": "report" }
+{
+  "user_id": "usr_xxx",
+  "type": "report",
+  "photo_name": "report.jpg",
+  "mime_type": "image/jpeg",
+  "image_data": "base64..."
+}
 ```
 
 `type` 可选：`report`、`meal`、`label`。
+
+输出包含：
+
+- `analysis`：结构化分析结果。
+- `fallback`：是否使用兜底样例。
+- `model`：成功时返回模型名。
+- `model_error`：兜底时用于调试的错误信息。
 
 ### 4.5 GET `/api/actions?user_id=...`
 

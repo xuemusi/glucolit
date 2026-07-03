@@ -75,6 +75,7 @@ Desktop.ini
 .env.test
 .env.production
 !.env.example
+.dev.vars
 
 # Temporary files
 tmp/

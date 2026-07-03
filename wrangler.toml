@@ -2,6 +2,10 @@ name = "glucolit"
 compatibility_date = "2026-05-03"
 pages_build_output_dir = "."
 
+[vars]
+TOKENDANCE_BASE_URL = "https://tokendance.space/gateway/v1"
+TOKENDANCE_MODEL = "kimi-k2.6"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "glucolit"

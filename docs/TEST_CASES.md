@@ -38,6 +38,8 @@
 | AI-005 | 合规表达 | 检查分析文本 | 不出现“治愈、逆转、不能吃、用药建议”等禁用表达 |
 | AI-006 | 拍照入口可见 | 打开 AI 工具页 | 出现 scanner 上传区域、`拍照上传`、`使用样例` |
 | AI-007 | 配料表拍照入口 | 切换到 `配料表分析` | 标题变为拍食品配料表，并可触发上传或样例分析 |
+| AI-008 | 模型分析通路 | POST `/api/analyze`，`type=label` | 返回 `fallback=false`、`model=kimi-k2.6` 或模型失败时明确返回 `fallback=true` 且有兜底结果 |
+| AI-009 | 图片字段通路 | POST `/api/analyze` 带 `photo_name`、`mime_type`、`image_data` | 接口不报错，成功或兜底都写入 `analysis_results` |
 
 ## 5. 行动与打卡
 
