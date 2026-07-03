@@ -160,6 +160,108 @@ button {
   letter-spacing: 0;
 }
 
+.focus-card {
+  overflow: hidden;
+  padding: 18px;
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 82% 12%, rgba(72, 184, 140, 0.22), transparent 28%),
+    linear-gradient(145deg, #112c28, #071c1a 72%);
+  color: white;
+}
+
+.focus-card .eyebrow,
+.focus-card .muted {
+  color: rgba(222, 247, 238, 0.82);
+}
+
+.focus-card .status-pill {
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff1cf;
+}
+
+.focus-copy {
+  max-width: 310px;
+  margin: 14px 0 0;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.focus-chart {
+  height: 142px;
+  margin: 16px 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background:
+    linear-gradient(to bottom, transparent 32%, rgba(255, 255, 255, 0.10) 32% 33%, transparent 33% 65%, rgba(255, 255, 255, 0.10) 65% 66%, transparent 66%),
+    rgba(255, 255, 255, 0.05);
+}
+
+.focus-chart svg {
+  width: 100%;
+  height: 100%;
+}
+
+.focus-band {
+  fill: rgba(72, 184, 140, 0.13);
+}
+
+.focus-line {
+  fill: none;
+  stroke: #7de0bd;
+  stroke-linecap: round;
+  stroke-width: 5;
+}
+
+.focus-point {
+  stroke: #102823;
+  stroke-width: 4;
+}
+
+.focus-point.coral {
+  fill: #f27b65;
+}
+
+.focus-point.amber {
+  fill: #efb84a;
+}
+
+.focus-point.mint {
+  fill: #7de0bd;
+}
+
+.signal-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.signal-row div {
+  min-height: 76px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 11px;
+}
+
+.signal-row span,
+.signal-row small {
+  display: block;
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.signal-row strong {
+  display: block;
+  margin: 6px 0 2px;
+  color: white;
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
 .hero-top,
 .row,
 .panel-header,
@@ -342,6 +444,57 @@ button {
   background: linear-gradient(90deg, rgba(255, 243, 220, 0.76), rgba(255, 255, 255, 0.92));
 }
 
+.warning-list li strong,
+.warning-list li span,
+.warning-list li em {
+  display: block;
+}
+
+.warning-list li span,
+.warning-list li em {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-style: normal;
+}
+
+.warning-list li em {
+  color: var(--teal);
+  font-weight: 800;
+}
+
+.scan-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.scan-card {
+  min-height: 88px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: linear-gradient(180deg, white, var(--soft));
+  color: var(--ink);
+  padding: 12px 8px;
+  text-align: left;
+}
+
+.scan-card strong,
+.scan-card span {
+  display: block;
+}
+
+.scan-card strong {
+  font-size: 0.98rem;
+}
+
+.scan-card span {
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
+
 .choice-grid,
 .tool-tabs {
   display: grid;
@@ -394,6 +547,92 @@ button {
 
 .analysis-card {
   padding: 14px;
+}
+
+.tool-hero {
+  background:
+    linear-gradient(135deg, rgba(237, 246, 251, 0.96), rgba(255, 255, 255, 0.92)),
+    var(--surface);
+}
+
+.scanner-panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  padding: 14px;
+}
+
+.scanner-frame {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 190px;
+  overflow: hidden;
+  border: 1px dashed rgba(14, 107, 103, 0.42);
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, rgba(14, 107, 103, 0.10) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(14, 107, 103, 0.10) 1px, transparent 1px),
+    #f8fbf8;
+  background-size: 28px 28px;
+  padding: 18px;
+  text-align: center;
+}
+
+.scanner-frame::before,
+.scanner-frame::after {
+  content: "";
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  border-color: var(--teal);
+  border-style: solid;
+}
+
+.scanner-frame::before {
+  left: 14px;
+  top: 14px;
+  border-width: 2px 0 0 2px;
+}
+
+.scanner-frame::after {
+  right: 14px;
+  bottom: 14px;
+  border-width: 0 2px 2px 0;
+}
+
+.scanner-line {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  top: 50%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--mint), transparent);
+}
+
+.scanner-frame strong {
+  max-width: 260px;
+  color: var(--teal-strong);
+  font-size: 1.08rem;
+  line-height: 1.35;
+}
+
+.scanner-frame span {
+  max-width: 260px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.tool-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.file-input {
+  display: none;
 }
 
 .analysis-card h3,

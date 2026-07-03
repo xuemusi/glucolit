@@ -13,6 +13,7 @@ const state = {
   appState: null,
   selectedTool: "report",
   latestAnalysis: null,
+  selectedFileName: "",
   loading: false,
 };
 
@@ -94,49 +95,52 @@ function renderHome() {
 
   return `
     <section class="stack">
-      <div class="hero-card">
+      <div class="focus-card">
         <div class="hero-top">
           <div>
-            <p class="eyebrow">${metrics.dataSource}</p>
-            <h2>早上好，今天先完成一小步</h2>
+            <p class="eyebrow">AI 监控中 · ${metrics.dataSource}</p>
+            <h2>今日关注</h2>
           </div>
           <span class="status-pill${statusClass}">${statusLabels[daily.status]}</span>
         </div>
-        <p class="muted">餐后波动、睡眠和打卡中断同时出现，今天优先做低门槛行动。</p>
-      </div>
-
-      <div class="card stack">
-        <div class="panel-header">
-          <h2>今日代谢状态</h2>
-          <span class="tag">${daily.date}</span>
-        </div>
-        <div class="chart" aria-label="血糖趋势">
-          <svg class="chart-svg" viewBox="0 0 320 132" role="img" aria-label="今日血糖趋势">
-            <path class="chart-band" d="M0 70 H320 V104 H0 Z"></path>
-            <polyline class="chart-polyline" points="18,84 112,48 198,78 292,58"></polyline>
-            <circle class="chart-point coral" cx="112" cy="48" r="6"></circle>
-            <circle class="chart-point amber" cx="198" cy="78" r="6"></circle>
-            <circle class="chart-point mint" cx="292" cy="58" r="6"></circle>
+        <p class="focus-copy">餐后峰值偏高叠加睡眠不足。今晚先完成饭后 15-20 分钟步行，不需要重启完整计划。</p>
+        <div class="focus-chart" aria-label="餐后血糖趋势">
+          <svg viewBox="0 0 320 126" role="img" aria-label="餐后血糖趋势">
+            <path class="focus-band" d="M0 72 H320 V102 H0 Z"></path>
+            <path class="focus-line" d="M16 86 C62 78, 86 42, 126 44 S192 92, 234 76 S284 55, 306 62"></path>
+            <circle class="focus-point coral" cx="126" cy="44" r="6"></circle>
+            <circle class="focus-point amber" cx="234" cy="76" r="6"></circle>
+            <circle class="focus-point mint" cx="306" cy="62" r="6"></circle>
           </svg>
         </div>
-        <div class="metrics-grid">
-          <div class="metric-card"><span>餐后峰值</span><strong>${metrics.glucoseTrend[1].value}</strong><span>mmol/L</span></div>
-          <div class="metric-card"><span>睡眠</span><strong>${metrics.sleepHours}</strong><span>小时</span></div>
-          <div class="metric-card"><span>步数</span><strong>${metrics.steps}</strong><span>步</span></div>
-          <div class="metric-card"><span>最近打卡</span><strong>${metrics.missedCheckinDays}</strong><span>天未完成</span></div>
+        <div class="signal-row">
+          <div><span>餐后峰值</span><strong>${metrics.glucoseTrend[1].value}</strong><small>mmol/L</small></div>
+          <div><span>睡眠</span><strong>${metrics.sleepHours}</strong><small>小时</small></div>
+          <div><span>未打卡</span><strong>${metrics.missedCheckinDays}</strong><small>天</small></div>
         </div>
       </div>
-
       <div class="card">
         <div class="panel-header">
-          <h2>AI 预警</h2>
+          <h2>AI 监控预警</h2>
           <button class="ghost-button" data-go="actions" type="button">去行动</button>
         </div>
         <ul class="warning-list">
           ${daily.reasons
-            .map((reason) => `<li><strong>${reason}</strong><br><span class="small">这是今天值得关注的信号，建议连接到一个低风险行动，而不是重启复杂计划。</span></li>`)
+            .map((reason) => `<li><strong>${reason}</strong><span>影响：可能让餐后波动更难回落。</span><em>行动：连接到今晚一个低风险小行动。</em></li>`)
             .join("")}
         </ul>
+      </div>
+
+      <div class="card stack">
+        <div class="panel-header">
+          <h2>拍照分析</h2>
+          <span class="tag">报告 / 餐盘 / 配料表</span>
+        </div>
+        <div class="scan-grid">
+          <button class="scan-card" type="button" data-tool-shortcut="report"><strong>报告</strong><span>OGTT / HbA1c</span></button>
+          <button class="scan-card" type="button" data-tool-shortcut="meal"><strong>餐盘</strong><span>主食和结构</span></button>
+          <button class="scan-card" type="button" data-tool-shortcut="label"><strong>配料表</strong><span>添加糖和替换</span></button>
+        </div>
       </div>
 
       <div class="card stack">
@@ -169,23 +173,31 @@ function choiceGroup(kind, options, active) {
 function renderTools() {
   return `
     <section class="stack">
-      <div class="hero-card">
+      <div class="hero-card tool-hero">
         <p class="eyebrow">AI 工具</p>
-        <h2>看报告、看餐盘、看配料表</h2>
-        <p class="muted">Demo 使用样例识别结果，任何模型失败都不会阻断主流程。</p>
+        <h2>${toolLabels[state.selectedTool]}</h2>
+        <p class="muted">${toolIntro(state.selectedTool)}</p>
       </div>
       <div class="tool-tabs">
         ${Object.entries(toolLabels)
           .map(([type, label]) => `<button class="tab-button${state.selectedTool === type ? " active" : ""}" type="button" data-tool="${type}">${label}</button>`)
           .join("")}
       </div>
-      <div class="card stack">
+      <div class="scanner-panel stack">
         <div class="panel-header">
-          <h2>${toolLabels[state.selectedTool]}</h2>
-          <span class="risk-pill">演示样例</span>
+          <h2>${scannerTitle(state.selectedTool)}</h2>
+          <span class="risk-pill">失败自动兜底</span>
         </div>
-        <p class="muted">${toolIntro(state.selectedTool)}</p>
-        <button class="primary-button" type="button" data-analyze="${state.selectedTool}">${state.loading ? "正在识别关键信息..." : "使用样例开始分析"}</button>
+        <div class="scanner-frame">
+          <div class="scanner-line"></div>
+          <strong>${state.selectedFileName || scannerHint(state.selectedTool)}</strong>
+          <span>${state.selectedFileName ? "已选择图片，将使用演示识别结果完成流程" : "支持拍照/相册；Demo 会使用稳定样例结果"}</span>
+        </div>
+        <input class="file-input" id="photoInput" type="file" accept="image/*" capture="environment">
+        <div class="tool-actions">
+          <button class="primary-button" type="button" data-photo-trigger>${state.loading ? "正在识别关键信息..." : "拍照上传"}</button>
+          <button class="secondary-button" type="button" data-analyze="${state.selectedTool}">使用样例</button>
+        </div>
       </div>
       ${state.latestAnalysis ? renderAnalysis(state.latestAnalysis) : ""}
       ${boundary()}
@@ -197,6 +209,18 @@ function toolIntro(type) {
   if (type === "report") return "识别 HbA1c、空腹血糖、餐后 2 小时血糖等字段，并要求用户校对。";
   if (type === "meal") return "识别主食、蛋白、蔬菜和烹饪方式，输出碳水风险和替换建议。";
   return "识别添加糖、精制碳水、蛋白和膳食纤维，给出购买建议。";
+}
+
+function scannerTitle(type) {
+  if (type === "report") return "拍报告截图";
+  if (type === "meal") return "拍当前餐盘";
+  return "拍食品配料表";
+}
+
+function scannerHint(type) {
+  if (type === "report") return "对准 HbA1c / OGTT 指标区域";
+  if (type === "meal") return "保持餐盘完整入镜";
+  return "对准配料和营养成分表";
 }
 
 function renderAnalysis(analysis) {
@@ -339,6 +363,37 @@ function bindViewEvents() {
     button.addEventListener("click", () => {
       state.selectedTool = button.dataset.tool;
       state.latestAnalysis = null;
+      state.selectedFileName = "";
+      render();
+    });
+  });
+  document.querySelectorAll("[data-tool-shortcut]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.selectedTool = button.dataset.toolShortcut;
+      state.latestAnalysis = null;
+      state.selectedFileName = "";
+      setView("tools");
+    });
+  });
+  document.querySelectorAll("[data-photo-trigger]").forEach((button) => {
+    button.addEventListener("click", () => {
+      document.querySelector("#photoInput")?.click();
+    });
+  });
+  document.querySelectorAll("#photoInput").forEach((input) => {
+    input.addEventListener("change", async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      state.selectedFileName = file.name || "已选择图片";
+      state.loading = true;
+      render();
+      const data = await api("/api/analyze", {
+        method: "POST",
+        body: JSON.stringify({ user_id: state.user.id, type: state.selectedTool }),
+      });
+      state.latestAnalysis = data.analysis;
+      state.loading = false;
+      await loadAppState();
       render();
     });
   });
