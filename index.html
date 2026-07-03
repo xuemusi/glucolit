@@ -1,13 +1,13 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta
       name="description"
-      content="Glucolit is a glucose community for tracking, learning, and sharing better metabolic habits."
+      content="GLUCOLIT 是面向糖尿病前期人群的 AI 生活方式干预行动陪跑 H5。"
     >
-    <title>Glucolit</title>
+    <title>GLUCOLIT</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -17,55 +17,40 @@
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
-    <main class="shell">
-      <section class="hero" aria-labelledby="page-title">
-        <div class="copy">
-          <p class="eyebrow">Private beta is warming up</p>
-          <h1 id="page-title">Glucolit</h1>
-          <p class="lead">
-            A glucose community for daily readings, shared routines, and practical experiments that make metabolic health easier to understand.
-          </p>
-          <div class="actions" aria-label="Project status">
-            <a class="button primary" href="mailto:hello@xuemusi.com">Join the waitlist</a>
-            <span class="status">Launching on Cloudflare</span>
-          </div>
+    <div class="app-frame">
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">AI metabolic companion</p>
+          <h1>GLUCOLIT</h1>
         </div>
+        <button class="ghost-button" id="resetUser" type="button">换号</button>
+      </header>
 
-        <div class="product-panel" aria-label="Glucose tracking preview">
-          <div class="panel-top">
-            <div>
-              <p class="panel-kicker">Today</p>
-              <h2>104 mg/dL</h2>
-            </div>
-            <span class="trend">Stable</span>
-          </div>
+      <main id="app" class="screen" aria-live="polite"></main>
 
-          <div class="chart" aria-hidden="true">
-            <span class="range high">160</span>
-            <span class="range low">70</span>
-            <div class="band"></div>
-            <div class="line"></div>
-            <div class="dot dot-one"></div>
-            <div class="dot dot-two"></div>
-            <div class="dot dot-three"></div>
-          </div>
+      <nav class="bottom-nav" aria-label="主导航">
+        <button class="nav-button active" type="button" data-view="home">首页</button>
+        <button class="nav-button" type="button" data-view="tools">AI</button>
+        <button class="nav-button" type="button" data-view="actions">行动</button>
+        <button class="nav-button" type="button" data-view="companion">陪伴</button>
+        <button class="nav-button" type="button" data-view="content">科普</button>
+      </nav>
+    </div>
 
-          <div class="metric-grid">
-            <div>
-              <span>Fasting</span>
-              <strong>92</strong>
-            </div>
-            <div>
-              <span>After meal</span>
-              <strong>126</strong>
-            </div>
-            <div>
-              <span>Check-ins</span>
-              <strong>7</strong>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
+    <dialog id="registerDialog" class="register-dialog">
+      <form id="registerForm" method="dialog" class="register-card">
+        <p class="eyebrow">快速进入 Demo</p>
+        <h2>输入手机号即可注册</h2>
+        <p class="muted">黑客松版本不做短信验证码。手机号只用于创建演示用户和保存打卡状态。</p>
+        <label class="field">
+          <span>手机号</span>
+          <input id="phoneInput" name="phone" inputmode="tel" autocomplete="tel" placeholder="13800138000" required>
+        </label>
+        <button class="primary-button" type="submit">进入 GLUCOLIT</button>
+        <p class="form-error" id="registerError"></p>
+      </form>
+    </dialog>
+
+    <script type="module" src="/app.js"></script>
   </body>
 </html>

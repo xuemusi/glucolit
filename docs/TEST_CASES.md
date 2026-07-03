@@ -1,0 +1,100 @@
+# GLUCOLIT MVP 测试用例
+
+测试目标：验证生产环境 `https://glucolit.xuemusi.com` 能跑通黑客松 MVP 主流程。
+
+## 1. 环境检查
+
+| ID | 用例 | 步骤 | 预期 |
+| --- | --- | --- | --- |
+| ENV-001 | 首页可访问 | 打开 `/` | HTTP 200，页面出现 `Glucolit` |
+| ENV-002 | 静态资源可访问 | 请求 `/styles.css`、`/app.js` | HTTP 200 |
+| ENV-003 | API 可访问 | 请求 `/api/content` | HTTP 200，返回文章卡片 |
+
+## 2. 注册
+
+| ID | 用例 | 步骤 | 预期 |
+| --- | --- | --- | --- |
+| AUTH-001 | 新手机号注册 | POST `/api/auth/register`，手机号使用测试号 | 返回 `user.id` 和 `session_token` |
+| AUTH-002 | 已有手机号再次进入 | 同手机号再次 POST | 返回同一手机号用户，不报错 |
+| AUTH-003 | 非法手机号 | 输入 `abc` 或少于 6 位 | HTTP 400，返回错误 |
+
+## 3. 首页
+
+| ID | 用例 | 步骤 | 预期 |
+| --- | --- | --- | --- |
+| HOME-001 | 加载首页状态 | 注册后 GET `/api/app-state` | 返回 `dailyState.status=attention` |
+| HOME-002 | 展示风险信号 | 打开首页 | 至少出现 2 条风险解释 |
+| HOME-003 | 更新压力/精力 | PATCH `/api/daily-state` | 返回更新后的压力/精力 |
+| HOME-004 | 最近记录 | 完成一次分析后返回首页 | 最近记录出现对应分析 |
+
+## 4. AI 工具
+
+| ID | 用例 | 步骤 | 预期 |
+| --- | --- | --- | --- |
+| AI-001 | 报告解读 | POST `/api/analyze`，`type=report` | 返回 HbA1c、空腹血糖、OGTT 等指标，并有边界声明 |
+| AI-002 | 报告校对 | 前端点击“确认无误” | 页面进入可生成行动状态 |
+| AI-003 | 餐盘分析 | POST `/api/analyze`，`type=meal` | 返回餐盘结构、碳水风险、替换建议 |
+| AI-004 | 配料表分析 | POST `/api/analyze`，`type=label` | 返回购买建议、风险原因、食用边界 |
+| AI-005 | 合规表达 | 检查分析文本 | 不出现“治愈、逆转、不能吃、用药建议”等禁用表达 |
+
+## 5. 行动与打卡
+
+| ID | 用例 | 步骤 | 预期 |
+| --- | --- | --- | --- |
+| ACT-001 | 查询行动 | GET `/api/actions?user_id=...` | 返回五类行动 |
+| ACT-002 | 单项打卡 | PATCH `/api/actions/:id` 为 `done` | 该行动状态变为 `done` |
+| ACT-003 | 一键完成 | POST `/api/actions/complete` | 五类行动均为 `done`，首页状态变为 `completed` |
+| ACT-004 | 首页状态变化 | 完成行动后 GET `/api/app-state` | `dailyState.status=completed` |
+
+## 6. 陪伴页
+
+| ID | 用例 | 步骤 | 预期 |
+| --- | --- | --- | --- |
+| COMP-001 | 打开陪伴页 | 点击底部“陪伴” | 出现电话式 UI |
+| COMP-002 | 接受行动 | 点击“愿意” | 运动行动状态变为 `confirmed` 或保持 `done` |
+
+## 7. 科普/社区页
+
+| ID | 用例 | 步骤 | 预期 |
+| --- | --- | --- | --- |
+| EDU-001 | 文章卡片 | 打开“科普” | 至少 3 篇文章 |
+| EDU-002 | 用户案例 | 打开“科普” | 至少 2 条用户案例 |
+| EDU-003 | 活动卡片 | 打开“科普” | 至少 1 个活动或服务卡片 |
+
+## 8. 移动端体验
+
+| ID | 用例 | 步骤 | 预期 |
+| --- | --- | --- | --- |
+| UI-001 | iPhone 尺寸 | 390x844 打开首页 | 内容不横向溢出 |
+| UI-002 | 底部导航 | 点击首页、AI、行动、陪伴、科普 | 页面切换正常 |
+| UI-003 | 核心流程 | 从注册到打卡完成 | 3 分钟内可跑完，无阻断 |
+
+## 9. 生产冒烟命令
+
+把手机号替换为新的测试号：
+
+```bash
+BASE=https://glucolit.xuemusi.com
+PHONE=139$(date +%s | tail -c 9)
+
+curl -sS "$BASE/api/content"
+curl -sS -X POST "$BASE/api/auth/register" \
+  -H 'content-type: application/json' \
+  --data "{\"phone\":\"$PHONE\"}"
+```
+
+拿到 `user.id` 后继续：
+
+```bash
+USER_ID=<user_id>
+
+curl -sS "$BASE/api/app-state?user_id=$USER_ID"
+curl -sS -X POST "$BASE/api/analyze" \
+  -H 'content-type: application/json' \
+  --data "{\"user_id\":\"$USER_ID\",\"type\":\"report\"}"
+curl -sS "$BASE/api/actions?user_id=$USER_ID"
+curl -sS -X POST "$BASE/api/actions/complete" \
+  -H 'content-type: application/json' \
+  --data "{\"user_id\":\"$USER_ID\"}"
+curl -sS "$BASE/api/app-state?user_id=$USER_ID"
+```

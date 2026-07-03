@@ -1,0 +1,7 @@
+name = "glucolit"
+compatibility_date = "2026-05-03"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "glucolit"
+database_id = "380e4d91-97b6-4788-a9ab-9288a22ae7f6"
