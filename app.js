@@ -354,6 +354,7 @@ function renderAnalysis(analysis) {
         </div>` : ""}
         <p class="helper">碳水风险：${escapeHtml(result.carbRisk || "中")}</p>
         <ul class="warning-list">${result.observations.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+        ${result.nutrition_notes?.length ? `<p class="helper">GI/GL/II 参考：${result.nutrition_notes.map(escapeHtml).join("；")}</p>` : ""}
         ${result.meal_order?.length ? `<p class="helper">进餐顺序：${result.meal_order.map(escapeHtml).join("；")}</p>` : ""}
         <p class="helper">替换建议：${result.swaps.map(escapeHtml).join("；")}</p>
       </div>

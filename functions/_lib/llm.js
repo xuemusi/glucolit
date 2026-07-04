@@ -1,4 +1,5 @@
 import { analysisSamples } from "./demo-data.js";
+import { findNutritionMatches, nutritionKnowledgeVersion } from "./nutrition-knowledge.js";
 
 const forbiddenTerms = ["治愈", "逆转", "保证降低血糖", "建议吃药", "停药", "不能吃", "必须吃"];
 
@@ -356,7 +357,8 @@ function buildMealNarrativeMessages({ mealItems, rules }) {
     "2. 不使用绝对化禁令；用“优先、可以、建议、减少、替换、控制份量”表达。",
     "3. 不估算精确热量，只做结构、份量和餐后波动风险判断。",
     "4. 如果是多人共享餐桌，要提醒结果是按图片估计，实际摄入量需用户确认。",
-    "5. 只输出 JSON：",
+    "5. 必须优先使用 RULES.nutrition_knowledge.refs 里的 GI/GL/II 知识库，不要自己编造 GI/GL/II 数值。",
+    "6. 只输出 JSON：",
     `{"title":"","summary":"","observations":[""],"swaps":[""],"meal_order":[""],"boundary":""}`,
     `ITEMS=${JSON.stringify(mealItems)}`,
     `RULES=${JSON.stringify(rules)}`,
@@ -573,6 +575,7 @@ function normalizeMealItems(items) {
       visible_clues: toTextArray(item.visible_clues),
       confidence: ["low", "medium", "high"].includes(item.confidence) ? item.confidence : "medium",
     }))
+    .map((item) => ({ ...item, nutrition_refs: findNutritionMatches(item.name) }))
     .filter((item) => item.name && item.category !== "unknown");
 }
 
@@ -601,6 +604,7 @@ function buildMealRules(items, overall = {}) {
   const vegetableScore = portionScore(vegetables);
   const oilLevel = normalizeOilLevel(overall.sauce_oil_level, items);
   const sharedTable = Boolean(overall.shared_table) || items.length >= 4;
+  const nutritionRefs = buildMealNutritionRefs(items);
 
   let carbRisk = "中";
   if (!staples.length || (stapleScore <= 1 && vegetableScore >= 2 && proteinScore >= 1)) {
@@ -612,15 +616,26 @@ function buildMealRules(items, overall = {}) {
   if (stapleScore >= 2 && proteinScore === 0) {
     carbRisk = "偏高";
   }
+  if (staples.some((item) => hasKnowledgeLevel(item, "glLevel", "high") && item.portion !== "small")) {
+    carbRisk = "偏高";
+  }
+  if (staples.some((item) => hasKnowledgeLevel(item, "glLevel", "medium") && item.portion === "large")) {
+    carbRisk = "偏高";
+  }
 
   const strengths = [];
   const watch = [];
   if (vegetableScore >= 2) strengths.push("蔬菜量充足，有助于增加饱腹感并平缓餐后波动。");
   if (proteinScore >= 2) strengths.push("蛋白质来源较丰富，适合搭配主食一起吃。");
   if (staples.some((item) => /杂粮|糙米|黑米|紫米|燕麦/i.test(item.name))) strengths.push("主食看起来含有粗杂粮，比精白主食更适合控制餐后波动。");
+  if (nutritionRefs.some((ref) => ref.glLevel === "low" && ref.iiLevel !== "high")) {
+    strengths.push("知识库匹配到部分低 GL/低或中等 II 食物，整体餐盘更适合稳住餐后波动。");
+  }
   if (stapleScore >= 2) watch.push("主食份量需要按个人目标确认，建议先以小半碗到一拳为起点。");
   if (oilLevel === "medium" || oilLevel === "high") watch.push("番茄蛋和炒菜有汤汁/油脂，建议少拌饭，优先吃固体食物。");
   if (drinks.length) watch.push("图片中有饮品时，需要确认是否含糖。");
+  if (nutritionRefs.some((ref) => ref.glLevel === "high")) watch.push("知识库匹配到高 GL 食物时，应优先把份量降下来，并搭配蔬菜和蛋白质。");
+  if (nutritionRefs.some((ref) => ref.glLevel === "low" && ref.iiLevel === "high")) watch.push("知识库提示部分食物 GL 低但胰岛素指数高，胰岛素抵抗人群需要结合个人反应观察。");
   if (sharedTable) watch.push("图片像多人共享餐桌，实际摄入量需要用户确认。");
 
   return {
@@ -639,9 +654,43 @@ function buildMealRules(items, overall = {}) {
       oil_sauce: oilLevel,
       shared_table: sharedTable,
     },
+    nutrition_knowledge: {
+      version: nutritionKnowledgeVersion,
+      refs: nutritionRefs,
+    },
     strengths,
     watch,
   };
+}
+
+function buildMealNutritionRefs(items) {
+  const refs = [];
+  const seen = new Set();
+  for (const item of items) {
+    for (const match of item.nutrition_refs || []) {
+      const key = `${item.name}:${match.food}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      refs.push({
+        item: item.name,
+        food: match.food,
+        group: match.group,
+        portion: match.portion,
+        carbs: match.carbs,
+        gi: match.gi,
+        gl: match.gl,
+        insulinIndex: match.insulinIndex,
+        glLevel: match.glLevel,
+        iiLevel: match.iiLevel,
+        note: match.note,
+      });
+    }
+  }
+  return refs;
+}
+
+function hasKnowledgeLevel(item, key, level) {
+  return (item.nutrition_refs || []).some((ref) => ref[key] === level);
 }
 
 function portionScore(items) {
@@ -698,10 +747,20 @@ function normalizeStructuredMeal(parsed, mealItems, rules, sample) {
       meal_order: mealOrder.length ? mealOrder : ["先吃青菜和鸡肉/鸡蛋，再吃主食；番茄蛋汤汁少拌饭。"],
       detected_items: mealItems,
       meal_rules: rules,
+      nutrition_refs: rules.nutrition_knowledge.refs,
+      nutrition_notes: buildNutritionNotes(rules.nutrition_knowledge.refs),
       medical_boundary: boundary,
       ai_source: "structured_meal_pipeline",
     },
   };
+}
+
+function buildNutritionNotes(refs) {
+  return refs.slice(0, 6).map((ref) => {
+    const glLabel = ref.glLevel === "low" ? "低 GL" : ref.glLevel === "medium" ? "中 GL" : ref.glLevel === "high" ? "高 GL" : "GL 未知";
+    const iiLabel = ref.iiLevel === "low" ? "低 II" : ref.iiLevel === "medium" ? "中 II" : ref.iiLevel === "high" ? "高 II" : "II 未知";
+    return `${ref.item}≈${ref.food}：GI ${ref.gi}，GL ${ref.gl}（${glLabel}），II ${ref.insulinIndex}（${iiLabel}）。${ref.note}`;
+  });
 }
 
 function buildMealSummary(rules) {
