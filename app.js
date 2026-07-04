@@ -54,6 +54,33 @@ const toolLabels = {
 };
 
 const categoryOrder = ["diet", "sleep", "exercise", "stress", "energy"];
+const actionContext = {
+  diet: {
+    source: "来自餐后峰值偏高",
+    rationale: "先调整主食份量和进食顺序，减少今晚餐后波动压力。",
+    fallback: "做不到时，只先把主食留到蔬菜和蛋白后面吃。",
+  },
+  sleep: {
+    source: "来自昨晚睡眠不足",
+    rationale: "睡眠不足会影响第二天胰岛素敏感性，今晚先把入睡时间拉回稳定区间。",
+    fallback: "做不到早睡时，先完成睡前 10 分钟离屏。",
+  },
+  exercise: {
+    source: "来自餐后峰值偏高 + 连续 3 天未完成饭后步行",
+    rationale: "饭后轻活动是今天最直接的低风险干预，先完成它再看其他任务。",
+    fallback: "做不到 15-20 分钟时，饭后先走 8 分钟也算完成降级版。",
+  },
+  stress: {
+    source: "来自压力状态偏紧绷",
+    rationale: "短呼吸练习能降低今晚继续靠零食或刷屏缓解压力的概率。",
+    fallback: "做不到 3 分钟时，先做 6 次慢呼吸。",
+  },
+  energy: {
+    source: "来自下午精力偏低",
+    rationale: "下午困倦时更容易选择含糖饮料，先准备一个替代选择。",
+    fallback: "做不到完全替换时，先把含糖饮料减半。",
+  },
+};
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
@@ -205,7 +232,7 @@ function renderHome() {
       <div class="focus-card">
         <div class="hero-top">
           <div>
-            <p class="eyebrow">今日健康概览 · ${metrics.dataSource}</p>
+            <p class="eyebrow">今日健康概览</p>
             <h2>早上好，今天稳一点</h2>
           </div>
           <span class="status-pill${statusClass}">${statusLabels[daily.status]}</span>
@@ -245,8 +272,8 @@ function renderHome() {
           <button class="ghost-button" data-go="actions" type="button">去打卡</button>
         </div>
         <ul class="warning-list">
-          ${daily.reasons
-            .map((reason) => `<li><strong>${reason}</strong><span>可能会让餐后恢复慢一点。</span><em>建议：今晚先完成一个低风险小行动。</em></li>`)
+          ${buildHomeReminders(daily.reasons)
+            .map((item) => `<li><strong>${escapeHtml(item.signal)}</strong><span>影响：${escapeHtml(item.impact)}</span><em>建议：${escapeHtml(item.action)}</em></li>`)
             .join("")}
         </ul>
       </div>
@@ -272,14 +299,85 @@ function renderHome() {
       <div class="card">
         <h2>最近记录</h2>
         <ul class="recent-list">
-          ${(data.recentAnalysis.length ? data.recentAnalysis : [{ title: "还没有识别记录", summary: "可以先上传报告、餐盘或配料表，生成第一条记录。" }])
-            .map((item) => `<li><strong>${item.title}</strong><br><span class="small">${item.summary}</span></li>`)
-            .join("")}
+          ${renderRecentAnalysisItems(data.recentAnalysis)}
         </ul>
       </div>
       ${boundary()}
     </section>
   `;
+}
+
+function buildHomeReminders(reasons = []) {
+  const fallbacks = [
+    {
+      impact: "餐后回落可能变慢，晚间更容易疲惫。",
+      action: "晚餐主食少 1/3，饭后 15-20 分钟轻走。",
+    },
+    {
+      impact: "第二天胰岛素敏感性可能下降，空腹状态更容易波动。",
+      action: "23:30 前上床，睡前 30 分钟不刷短视频。",
+    },
+    {
+      impact: "连续记录变少后，更难判断哪些行动真的有效。",
+      action: "今天只补一个 8 分钟轻量版本也算完成。",
+    },
+  ];
+
+  return reasons.map((reason, index) => {
+    if (/睡眠|熬夜/.test(reason)) {
+      return {
+        signal: reason,
+        impact: "睡眠不足会影响第二天餐后恢复和精力。",
+        action: "今晚先把上床时间提前 20 分钟，睡前 30 分钟停屏。",
+      };
+    }
+    if (/未完成|未打卡|步行|连续/.test(reason)) {
+      return {
+        signal: reason,
+        impact: "饭后活动中断后，餐后峰值更容易停留久一点。",
+        action: "今天做降级版：饭后轻走 8-10 分钟，完成一件即可。",
+      };
+    }
+    if (/餐后|晚餐|血糖|波动/.test(reason)) {
+      return {
+        signal: reason,
+        impact: "晚餐后的波动会影响夜间恢复，也会影响第二天空腹状态。",
+        action: "晚餐先吃蔬菜和蛋白，主食少 1/3，饭后轻走 15 分钟。",
+      };
+    }
+    const fallback = fallbacks[index % fallbacks.length];
+    return { signal: reason, ...fallback };
+  });
+}
+
+function renderRecentAnalysisItems(items = []) {
+  if (!items.length) {
+    return `<li><strong>还没有识别记录</strong><span class="small recent-summary">可以先上传报告、餐盘或配料表，生成第一条记录。</span></li>`;
+  }
+  return items
+    .map((item) => {
+      const typeLabel = toolLabels[item.type] || "分析";
+      const time = formatDateTime(item.created_at);
+      return `
+        <li>
+          <div class="recent-topline">
+            <span class="tag">${escapeHtml(typeLabel)}</span>
+            <span>${escapeHtml(time)}</span>
+          </div>
+          <strong>${escapeHtml(item.title)}</strong>
+          <span class="small recent-summary">${escapeHtml(item.summary)}</span>
+          <button class="text-link" type="button" data-record-id="${escapeHtml(item.id)}">查看详情</button>
+        </li>
+      `;
+    })
+    .join("");
+}
+
+function formatDateTime(value) {
+  if (!value) return "刚刚";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "刚刚";
+  return new Intl.DateTimeFormat("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).format(date);
 }
 
 function choiceGroup(kind, options, active) {
@@ -409,15 +507,7 @@ function renderAnalysis(analysis) {
   if (analysis.type === "meal") {
     return renderMealAnalysis(analysis, sourceLabel);
   }
-  return `
-    <div class="analysis-card stack">
-      <div class="panel-header"><h3>${analysis.title}</h3><span class="risk-pill">${sourceLabel}</span></div>
-      <p class="muted">${analysis.summary}</p>
-      <ul class="warning-list">${result.reasons.map((item) => `<li>${item}</li>`).join("")}</ul>
-      <p class="helper">替换建议：${result.alternatives.join("；")}</p>
-      <p class="helper">${result.boundary}</p>
-    </div>
-  `;
+  return renderLabelAnalysis(analysis, sourceLabel);
 }
 
 function renderMealAnalysis(analysis, sourceLabel) {
@@ -441,6 +531,95 @@ function renderMealAnalysis(analysis, sourceLabel) {
       <p class="meal-source">${escapeHtml(sourceLabel)} · 图片估计结果请按实际摄入量确认</p>
     </div>
   `;
+}
+
+function renderLabelAnalysis(analysis, sourceLabel) {
+  const result = analysis.result;
+  const advice = labelPurchaseAdvice(result.purchaseAdvice, analysis.risk_level);
+  const reasons = Array.isArray(result.reasons) ? result.reasons : [];
+  const alternatives = Array.isArray(result.alternatives) ? result.alternatives : [];
+  const boundaryCopy = result.boundary || result.medical_boundary || "配料表建议用于消费选择参考，请结合个人情况和实际摄入量判断。";
+
+  return `
+    <div class="analysis-card label-analysis stack">
+      <div class="label-hero ${advice.tone}">
+        <div>
+          <p class="eyebrow">配料表购买建议</p>
+          <h3>${escapeHtml(advice.title)}</h3>
+        </div>
+        <span class="label-advice-pill">${escapeHtml(sourceLabel)}</span>
+      </div>
+      <p class="label-summary">${highlightLabelText(analysis.summary)}</p>
+      <div class="traffic-light" aria-label="购买建议红绿灯">
+        ${["green", "yellow", "red"].map((tone) => renderTrafficLightStep(tone, advice.tone)).join("")}
+      </div>
+      ${reasons.length ? `
+        <section class="label-section">
+          <h4>触发原因</h4>
+          <div class="label-reason-grid">
+            ${reasons.map((item) => `<div class="${labelReasonTone(item)}"><span>${escapeHtml(labelReasonTag(item))}</span><p>${highlightLabelText(item)}</p></div>`).join("")}
+          </div>
+        </section>
+      ` : ""}
+      ${alternatives.length ? `
+        <section class="label-section">
+          <h4>更稳的替代选择</h4>
+          <div class="label-alternative-list">
+            ${alternatives.map((item, index) => `<div><span>${index + 1}</span><p>${highlightLabelText(item)}</p></div>`).join("")}
+          </div>
+        </section>
+      ` : ""}
+      <p class="meal-source">${escapeHtml(boundaryCopy)}</p>
+    </div>
+  `;
+}
+
+function labelPurchaseAdvice(value, riskLevel) {
+  const normalized = String(value || "").trim();
+  if (normalized === "更适合" || riskLevel === "green") {
+    return { tone: "green", title: "适合常买" };
+  }
+  if (normalized === "建议替换" || riskLevel === "red" || riskLevel === "orange") {
+    return { tone: "red", title: "不建议常买" };
+  }
+  return { tone: "yellow", title: "偶尔少量" };
+}
+
+function renderTrafficLightStep(tone, activeTone) {
+  const labels = {
+    green: "适合常买",
+    yellow: "偶尔少量",
+    red: "不建议常买",
+  };
+  return `
+    <div class="traffic-step ${tone}${tone === activeTone ? " active" : ""}">
+      <i></i>
+      <strong>${labels[tone]}</strong>
+    </div>
+  `;
+}
+
+function labelReasonTone(text) {
+  if (/糖|精制|钠|盐|饱和|反式|脂肪|靠前|偏高|不突出|低/.test(text)) return "warn";
+  return "good";
+}
+
+function labelReasonTag(text) {
+  if (/糖|蔗糖|果葡|糖浆|麦芽糊精/.test(text)) return "添加糖";
+  if (/精制|淀粉|小麦粉|米粉|糊精/.test(text)) return "精制碳水";
+  if (/钠|盐/.test(text)) return "钠";
+  if (/脂肪|饱和|反式|油/.test(text)) return "脂肪";
+  if (/纤维/.test(text)) return "膳食纤维";
+  if (/蛋白/.test(text)) return "蛋白质";
+  return "配料信号";
+}
+
+function highlightLabelText(text) {
+  const safe = escapeHtml(text);
+  return safe.replace(
+    /(适合常买|偶尔少量|不建议常买|添加糖|蔗糖|果葡糖浆|麦芽糊精|精制碳水|钠|饱和脂肪|反式脂肪|膳食纤维|蛋白质|无糖|原味|高蛋白|低糖|控制份量)/g,
+    (match) => `<mark class="label-mark">${match}</mark>`,
+  );
 }
 
 function mealRisk(value) {
@@ -862,7 +1041,11 @@ function renderActions() {
   const data = state.appState;
   if (!data) return loadingMarkup();
   const sorted = [...data.actions].sort((a, b) => categoryOrder.indexOf(a.category) - categoryOrder.indexOf(b.category));
-  const doneCount = sorted.filter((action) => action.status === "done").length;
+  const primary = sorted.find((action) => action.category === "exercise") || sorted[0];
+  const optional = sorted.filter((action) => action.id !== primary?.id);
+  const primaryDone = primary?.status === "done";
+  const optionalDoneCount = optional.filter((action) => action.status === "done").length;
+  const primaryContext = getActionContext(primary);
 
   return `
     <section class="stack">
@@ -870,26 +1053,47 @@ function renderActions() {
         <div class="hero-top">
           <div>
             <p class="eyebrow">今日行动</p>
-            <h2>${doneCount}/${sorted.length} 已完成</h2>
+            <h2>${primaryDone ? "主行动已完成" : "先完成 1 个主行动"}</h2>
           </div>
-          <button class="ghost-button" type="button" data-complete-all>全部标记完成</button>
+          ${
+            primary
+              ? `<button class="ghost-button" type="button" data-action-id="${primary.id}">${primaryDone ? "取消完成" : "完成主行动"}</button>`
+              : ""
+          }
         </div>
-        <p class="muted">今天只完成 3-5 件小事，不追求完美。</p>
+        <p class="muted">${primaryContext.source}。今天先把最高优先级做完，其他行动只作为可选加分。</p>
       </div>
-      ${sorted.map(renderActionCard).join("")}
+      ${primary ? `<div class="action-section"><p class="eyebrow">主行动 ${primaryDone ? 1 : 0}/1</p>${renderActionCard(primary, true)}</div>` : ""}
+      <div class="action-section">
+        <div class="section-heading compact">
+          <p class="eyebrow">可选行动 ${optionalDoneCount}/${optional.length}</p>
+          <h2>有余力再做</h2>
+        </div>
+        ${optional.map((action) => renderActionCard(action, false)).join("")}
+      </div>
       ${boundary()}
     </section>
   `;
 }
 
-function renderActionCard(action) {
+function getActionContext(action) {
+  if (!action) {
+    return { source: "来自今日关注信号", rationale: "先完成一个低门槛行动。", fallback: "做不到时可以选择更轻的版本。" };
+  }
+  return actionContext[action.category] || actionContext.exercise;
+}
+
+function renderActionCard(action, isPrimary = false) {
+  const context = getActionContext(action);
   return `
-    <div class="action-card ${action.status}">
+    <div class="action-card ${action.status} ${isPrimary ? "primary-action" : "optional-action"}">
       <div class="action-row">
         <div>
-          <span class="tag">${action.title}</span>
+          <span class="tag">${isPrimary ? "主行动" : action.title}</span>
+          ${isPrimary ? `<h3>${action.title}</h3>` : ""}
           <p class="muted">${action.detail}</p>
-          <p class="small">状态：${action.status === "done" ? "已完成" : action.status === "confirmed" ? "已确认" : "未开始"}</p>
+          <p class="source-note"><strong>${context.source}</strong><span>${context.rationale}</span></p>
+          <p class="small">${action.status === "done" ? "已记录：今晚优先级完成，连续 3 天后再看趋势。" : context.fallback}</p>
         </div>
         <button class="checkbox ${action.status === "done" ? "done" : ""}" aria-label="完成${action.title}" type="button" data-action-id="${action.id}"></button>
       </div>
@@ -942,32 +1146,15 @@ function renderProfile() {
 
       <div class="card stack">
         <div class="panel-header">
-          <h2>身体成分</h2>
-          <span class="tag">长期记录</span>
-        </div>
-        <div class="mini-metric-grid">
-          ${profile.bodyComposition.map((item) => `<div><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.value)} ${escapeHtml(item.unit)}</strong><small>${escapeHtml(item.note)}</small></div>`).join("")}
-        </div>
-      </div>
-
-      <div class="card stack">
-        <div class="panel-header">
           <h2>糖耐量曲线对比</h2>
           <span class="tag">前后对比</span>
         </div>
         ${renderOgttProfileChart(profile)}
+        <p class="profile-chart-copy">2 小时回落变快，是这次最重要的好变化；后续继续看复查趋势是否稳定。</p>
         <ul class="content-list">${profile.ogtt.shape.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
       </div>
 
-      ${latestExtraction ? renderLatestReportExtraction(latestExtraction) : ""}
-
-      <div class="card stack">
-        <div class="panel-header">
-          <h2>复查指标记录</h2>
-          <span class="tag">上传报告后补充</span>
-        </div>
-        ${profile.labGroups.map(renderProfileLabGroup).join("")}
-      </div>
+      ${renderProfileProfessionalDetails(profile, latestExtraction)}
 
       <div class="card stack">
         <div class="panel-header">
@@ -987,37 +1174,72 @@ function renderProfile() {
 
       <div class="card stack">
         <div class="panel-header">
-          <h2>日常观察目标</h2>
-          <span class="tag">看长期趋势</span>
-        </div>
-        <div class="mini-metric-grid">
-          ${profile.monitoringTargets.map((item) => `<div><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.value)}</strong><small>按医生建议调整个人目标</small></div>`).join("")}
-        </div>
-      </div>
-
-      <div class="card stack">
-        <div class="panel-header">
-          <h2>健康记录时间线</h2>
-          <span class="tag">关键节点</span>
-        </div>
-        <div class="timeline-list">${profile.timeline.map(renderTimelineEvent).join("")}</div>
-      </div>
-
-      <div class="card stack">
-        <div class="panel-header">
           <h2>我的行动清单</h2>
           <button class="ghost-button" type="button" data-go="actions">去打卡</button>
         </div>
         <ul class="content-list">${profile.actionChecklist.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
       </div>
-
-      <div class="card">
-        <h2>下次复查可补充的指标</h2>
-        <p class="muted">这些不是今天都要填写，用于下次上传报告或和医生沟通时逐步完善。</p>
-        <div class="tag-row">${profile.fixedMetricSchema.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>
-      </div>
       <p class="medical-boundary">${escapeHtml(summary.boundary)}</p>
     </section>
+  `;
+}
+
+function renderProfileProfessionalDetails(profile, latestExtraction) {
+  return `
+    <details class="profile-details">
+      <summary>
+        <span>
+          <strong>完整专业指标</strong>
+          <small>身体成分、复查指标、报告抽取和观察目标</small>
+        </span>
+        <em>展开</em>
+      </summary>
+      <div class="profile-details-body stack">
+        <section class="stack">
+          <div class="panel-header">
+            <h2>身体成分</h2>
+            <span class="tag">长期记录</span>
+          </div>
+          <div class="mini-metric-grid">
+            ${profile.bodyComposition.map((item) => `<div><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.value)} ${escapeHtml(item.unit)}</strong><small>${escapeHtml(item.note)}</small></div>`).join("")}
+          </div>
+        </section>
+
+        ${latestExtraction ? renderLatestReportExtraction(latestExtraction, true) : ""}
+
+        <section class="stack">
+          <div class="panel-header">
+            <h2>复查指标记录</h2>
+            <span class="tag">上传报告后补充</span>
+          </div>
+          ${profile.labGroups.map(renderProfileLabGroup).join("")}
+        </section>
+
+        <section class="stack">
+          <div class="panel-header">
+            <h2>日常观察目标</h2>
+            <span class="tag">看长期趋势</span>
+          </div>
+          <div class="mini-metric-grid">
+            ${profile.monitoringTargets.map((item) => `<div><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.value)}</strong><small>按医生建议调整个人目标</small></div>`).join("")}
+          </div>
+        </section>
+
+        <section class="stack">
+          <div class="panel-header">
+            <h2>健康记录时间线</h2>
+            <span class="tag">关键节点</span>
+          </div>
+          <div class="timeline-list">${profile.timeline.map(renderTimelineEvent).join("")}</div>
+        </section>
+
+        <section>
+          <h2>下次复查可补充的指标</h2>
+          <p class="muted">这些不是今天都要填写，用于下次上传报告或和医生沟通时逐步完善。</p>
+          <div class="tag-row">${profile.fixedMetricSchema.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>
+        </section>
+      </div>
+    </details>
   `;
 }
 
@@ -1071,9 +1293,9 @@ function roundNumber(value) {
   return Math.round(value * 10) / 10;
 }
 
-function renderLatestReportExtraction(extraction) {
+function renderLatestReportExtraction(extraction, embedded = false) {
   return `
-    <div class="card stack">
+    <div class="${embedded ? "profile-detail-section" : "card"} stack">
       <div class="panel-header">
         <h2>最近报告抽取</h2>
         <span class="tag">待校对</span>
@@ -1295,6 +1517,20 @@ function bindViewEvents() {
   });
   document.querySelectorAll("[data-go]").forEach((button) => {
     button.addEventListener("click", () => setView(button.dataset.go));
+  });
+  document.querySelectorAll("[data-record-id]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const item = state.appState?.recentAnalysis?.find((record) => record.id === button.dataset.recordId);
+      if (!item) return;
+      state.selectedTool = item.type || "report";
+      const slot = toolState(state.selectedTool);
+      slot.latestAnalysis = item;
+      slot.latestAnalysisMeta = { fallback: null };
+      slot.streamText = "";
+      slot.streamStatus = "";
+      slot.loading = false;
+      setView("tools");
+    });
   });
   document.querySelectorAll("[data-choice]").forEach((group) => {
     group.querySelectorAll("button").forEach((button) => {

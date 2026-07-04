@@ -9,7 +9,7 @@ export const metrics = {
   steps: 4200,
   heartRate: 78,
   missedCheckinDays: 3,
-  dataSource: "示例设备数据",
+  dataSource: "近期记录",
 };
 
 export const reasons = [
