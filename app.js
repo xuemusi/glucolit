@@ -85,34 +85,34 @@ const hardwareDevices = [
 const categoryOrder = ["diet", "sleep", "exercise", "stress", "energy"];
 const actionContext = {
   diet: {
-    source: "来自餐后峰值偏高",
-    rationale: "同一餐先吃菜和蛋白、后吃主食，通常比单纯少吃更容易执行，也更有助于平稳餐后血糖。",
-    fallback: "做不到换主食时，先把主食留到蔬菜和蛋白后面吃，也算完成。",
-    guard: "如出现心慌、手抖、出汗、头晕，请立即吃点含糖食物并尽快就医；正在用降糖药或胰岛素的人群尤其要注意。",
+    source: "发现你最近的餐后血糖有些波动",
+    rationale: "调换一下吃饭顺序（先吃菜和肉，最后吃主食）比单纯挨饿容易得多。这样能给血糖铺个“缓冲垫”，不让它坐过山车。",
+    fallback: "如果今天没准备杂粮饭，只做到“把白米饭留到最后吃”，也已经非常棒了。",
+    guard: "注意：如果感到心慌、手抖、手心出汗或头晕，这可能是低血糖信号，请立刻吃糖并视情况就医。正在用药的糖友请加倍小心。",
   },
   sleep: {
-    source: "来自近 3 天睡眠不足 7 小时",
-    rationale: "睡不够会让第二天血糖更难平稳，先把睡眠作为一个可执行行动闭环。",
-    fallback: "做不到提前 20 分钟时，先完成睡前 10 分钟离屏。",
-    guard: "如果长期失眠、夜间憋醒或白天明显嗜睡，请咨询医生排查睡眠问题。",
+    source: "看到你最近 3 天的睡眠都不到 7 小时",
+    rationale: "睡眠不足是身体隐形的压力源，会直接降低第二天的胰岛素敏感性。今晚早睡一点，明天控糖底气更足。",
+    fallback: "如果今天实在无法早睡，就挑战在睡前 10 分钟把手机放到一旁，静静躺会儿。",
+    guard: "注意：如果你经常整夜失眠、半夜憋醒，或者白天经常控制不住地犯困，建议找专业医生聊聊睡眠健康。",
   },
   exercise: {
-    source: "来自餐后血糖峰值偏高 + 连续 3 天没完成饭后步行",
-    rationale: "餐后这段时间是血糖上升期，此时轻走动有助于平稳餐后血糖。今天优先安排在你峰值最高的那一餐（近期是晚餐）后。",
-    fallback: "没时间/体力不够？餐后先走 8 分钟，也算完成。",
-    guard: "如出现头晕、明显气促或身体不适，请立即停止并注意补水，必要时咨询医生。",
+    source: "检测到你餐后血糖有些偏高，且最近 3 天没怎么饭后散步",
+    rationale: "饭后是血糖冲高的关键期，这时候稍微活动一下，就像一把“隐形扫帚”，能帮身体把多余的糖分消耗掉。今天我们优先盯防你近期血糖峰值最高的晚餐后。",
+    fallback: "实在没时间或太累？饭后哪怕只走 8 分钟，也已经能起作用了。动起来就是胜利。",
+    guard: "注意：如果运动中觉得头晕、胸闷、喘不过气，请立刻停下休息并喝点水。千万别硬撑，身体最重要。",
   },
   stress: {
-    source: "来自压力状态偏紧绷",
-    rationale: "你今天的压力偏紧绷。慢呼吸能帮你缓下来，也更容易避免晚上用零食或刷手机来解压。",
-    fallback: "不到 3 分钟？先做 6 次缓慢的深呼吸也可以。",
-    guard: "如果呼吸练习时出现胸闷、头晕或明显不适，请停止练习并按需就医。",
+    source: "捕捉到你今天有些精神紧绷、压力偏大",
+    rationale: "压力荷尔蒙会直接让血糖升高。通过慢呼吸帮身体踩下神经的“刹车”，能让你放松下来，有效防止晚上因为情绪性压力而想吃零食。",
+    fallback: "静不下心做足 3 分钟？只做 6 次深呼吸也可以，这已经能给身体发出放松的信号了。",
+    guard: "注意：如果在深呼吸时感觉胸闷、憋气或头晕，请立刻换回平时的呼吸节奏，别勉强自己。",
   },
   energy: {
-    source: "来自下午精力偏低",
-    rationale: "下午困倦更容易伸手拿含糖饮料。先备好替代方案，帮助平稳这段时间的血糖与精力。",
-    fallback: "一下子戒不掉？先把这杯含糖饮料减半。",
-    guard: "含咖啡因的茶建议避开睡前几小时，以免影响睡眠；减少含糖饮料时也要留意低血糖不适。",
+    source: "发现你最近一到下午就比较容易疲惫困倦",
+    rationale: "下午犯困往往伴随着血糖的大起大落。提前用无糖茶和坚果做个“防护盾”，可以平稳你下午的精力和血糖状态。",
+    fallback: "如果今天特别想喝甜的，试试改点微糖，或者只喝半杯，这已经是一大步跨越了。",
+    guard: "注意：下午如果要喝含咖啡因的茶或咖啡，建议在睡前 6 小时前喝完。如果减少了甜食，也要留意身体有没有明显的低血糖心慌反应。",
   },
 };
 
@@ -1354,21 +1354,21 @@ function renderActions() {
         <div class="hero-top">
           <div>
             <p class="eyebrow">今日行动</p>
-            <h2>${primaryDone ? "今天，已做好这 1 件事" : "今天，先做好这 1 件事"}</h2>
+            <h2>${primaryDone ? "太棒了，今天已搞定" : "今天，只专注这 1 件事"}</h2>
           </div>
           ${
             primary
-              ? `<button class="ghost-button" type="button" data-action-id="${primary.id}">${primaryDone ? "取消完成" : "完成主行动"}</button>`
+              ? `<button class="ghost-button" type="button" data-action-id="${primary.id}">${primaryDone ? "撤销完成" : "我做到了"}</button>`
               : ""
           }
         </div>
-        <p class="muted">这条是根据你近期数据挑出的当日重点：${primaryContext.source.replace(/^来自/, "")}。先完成它，其他都算加分，不必有压力。</p>
+        <p class="muted">根据你最近的身体信号（${primaryContext.source}），AI 帮你挑出了今天的“头等大事”。先把这件事搞定，其他的都是加分项，不要有压力。</p>
       </div>
-      ${primary ? `<div class="action-section"><p class="eyebrow">主行动 ${primaryDone ? 1 : 0}/1</p>${renderActionCard(primary, true)}</div>` : ""}
+      ${primary ? `<div class="action-section"><p class="eyebrow">核心行动 ${primaryDone ? 1 : 0}/1</p>${renderActionCard(primary, true)}</div>` : ""}
       <div class="action-section">
         <div class="section-heading compact">
-          <p class="eyebrow">可选行动 ${optionalDoneCount}/${optional.length}</p>
-          <h2>有余力再做</h2>
+          <p class="eyebrow">加分挑战 ${optionalDoneCount}/${optional.length}</p>
+          <h2>还有精力？再来一个</h2>
         </div>
         ${optional.map((action) => renderActionCard(action, false)).join("")}
       </div>
@@ -1381,7 +1381,7 @@ function renderActions() {
 function getActionContext(action) {
   if (!action) {
     return {
-      source: "来自今日关注信号",
+      source: "今日关注信号",
       rationale: "先完成一个低门槛行动。",
       fallback: "做不到时可以选择更轻的版本。",
       guard: "如出现明显身体不适，请先停止行动并按需咨询医生。",
@@ -1396,15 +1396,15 @@ function renderActionCard(action, isPrimary = false) {
     <div class="action-card ${action.status} ${isPrimary ? "primary-action" : "optional-action"}">
       <div class="action-row">
         <div>
-          <span class="tag">${isPrimary ? "主行动" : action.title}</span>
+          <span class="tag">${isPrimary ? "核心行动" : action.title}</span>
           ${isPrimary ? `<h3>${action.title}</h3>` : ""}
           <div class="action-steps">
-            <p><strong>行动</strong><span>${escapeHtml(action.detail)}</span></p>
-            <p><strong>为什么</strong><span>${escapeHtml(context.rationale)}</span></p>
-            <p><strong>降级版</strong><span>${escapeHtml(context.fallback)}</span></p>
-            <p class="guard"><strong>安全护栏</strong><span>${escapeHtml(context.guard)}</span></p>
+            <p><strong>建议做法</strong><span>${escapeHtml(action.detail)}</span></p>
+            <p><strong>对你的帮助</strong><span>${escapeHtml(context.rationale)}</span></p>
+            <p><strong>累了？试试这招</strong><span>${escapeHtml(context.fallback)}</span></p>
+            <p class="guard"><strong>身体红线</strong><span>${escapeHtml(context.guard)}</span></p>
           </div>
-          ${action.status === "done" ? `<p class="small">已记录：今天主行动完成，连续 3 天后再看趋势。</p>` : ""}
+          ${action.status === "done" ? `<p class="small">${isPrimary ? "太棒了，今天的核心行动已搞定。连续坚持 3 天，我们一起来看身体的奇妙变化。" : "太棒了，加分行动已搞定。"}</p>` : ""}
         </div>
         <button class="checkbox ${action.status === "done" ? "done" : ""}" aria-label="完成${action.title}" type="button" data-action-id="${action.id}"></button>
       </div>
@@ -1418,13 +1418,13 @@ function renderCompanion() {
       <div class="card call-card">
         <div class="avatar" aria-hidden="true"></div>
         <div>
-          <p class="eyebrow">你来决定</p>
+          <p class="eyebrow">悄悄提醒</p>
           <h2>AI 行动陪伴</h2>
-          <p class="muted">我看到你今天已经有几个关注信号。我们不用重启完整计划，先完成一件事：餐后 15–30 分钟内轻走 15 分钟。</p>
+          <p class="muted">我注意到你今天有几个代谢小波动。别担心，我们不需要重新启动那些复杂的计划，今天先试试这一件简单的小事：饭后 15-30 分钟出门散散步，走 15 分钟就好。你觉得怎么样？</p>
         </div>
         <div class="wave" aria-hidden="true"></div>
-        <button class="primary-button" type="button" data-companion-confirm>愿意，把它设为今天的行动</button>
-        <button class="secondary-button" type="button" data-companion-light>换一个轻一点的</button>
+        <button class="primary-button" type="button" data-companion-confirm>好呀，今天就做这件事</button>
+        <button class="secondary-button" type="button" data-companion-light>有点难，能换个更轻松的吗</button>
       </div>
       ${renderCrisisSupportCard()}
       ${boundary()}
@@ -1435,14 +1435,14 @@ function renderCompanion() {
 function renderCrisisSupportCard() {
   return `
     <div class="card crisis-card">
-      <h2>需要立即支持时</h2>
-      <p class="muted">如果你感到情绪难以承受，或出现伤害自己的念头，你并不孤单，请立即寻求帮助：</p>
+      <h2>当你觉得有些累、需要人听听心里话时</h2>
+      <p class="muted">如果此时你感到压力太大、情绪难以承受，或者有一些难过无助的念头，请记得你绝不是孤单一个人。我们可以随时停下来，向温暖的手伸出求助：</p>
       <ul class="content-list">
         <li>全国心理援助热线：12356（一键拨打）</li>
         <li>危及生命的紧急情况：拨打 120 / 110</li>
         <li>也可以联系你信任的家人或朋友陪在身边</li>
       </ul>
-      <a class="primary-button support-call" href="tel:12356">我需要帮助：拨打 12356</a>
+      <a class="primary-button support-call" href="tel:12356">拨打心理援助热线：12356</a>
     </div>
   `;
 }
