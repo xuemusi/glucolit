@@ -85,5 +85,5 @@ temp/
 
 # Custom ignored files
 .trae
+.playwright-cli/
 docs/项目方向GLUCOLIT-V3.pdf
-docs/开发进度.md
