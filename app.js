@@ -18,6 +18,8 @@ const state = {
     label: createToolState(),
   },
   selectedContent: null,
+  devicePanelOpen: false,
+  connectedDevices: JSON.parse(localStorage.getItem("glucolit:devices") || "{}"),
 };
 
 function createToolState() {
@@ -54,6 +56,30 @@ const toolLabels = {
   meal: "餐盘分析",
   label: "配料表分析",
 };
+
+const hardwareDevices = [
+  {
+    id: "apple_watch",
+    name: "Apple Watch",
+    signal: "步数 / 睡眠 / 心率",
+    status: "建议优先接入",
+    accent: "mint",
+  },
+  {
+    id: "cgm",
+    name: "CGM 传感器",
+    signal: "餐后曲线 / 波动",
+    status: "预留接口",
+    accent: "amber",
+  },
+  {
+    id: "scale_bp",
+    name: "体脂秤与血压计",
+    signal: "体重 / 腰围 / 血压",
+    status: "可手动同步",
+    accent: "teal",
+  },
+];
 
 const categoryOrder = ["diet", "sleep", "exercise", "stress", "energy"];
 const actionContext = {
@@ -322,8 +348,67 @@ function renderHome() {
           ${renderRecentAnalysisItems(data.recentAnalysis)}
         </ul>
       </div>
+      ${renderHardwareDock()}
       ${boundary()}
     </section>
+  `;
+}
+
+function renderHardwareDock() {
+  const connectedCount = hardwareDevices.filter((device) => state.connectedDevices[device.id]).length;
+  const panelClass = state.devicePanelOpen ? " open" : "";
+  return `
+    <div class="device-float${panelClass}" aria-label="硬件设备接入">
+      <button class="device-orb" type="button" data-device-panel-toggle aria-expanded="${state.devicePanelOpen ? "true" : "false"}">
+        <span class="device-orb-ring"></span>
+        <span class="device-orb-screen">
+          <strong>${connectedCount || "接入"}</strong>
+          <small>${connectedCount ? "设备在线" : "设备"}</small>
+        </span>
+        <span class="device-orb-wave"></span>
+      </button>
+      <div class="device-panel" role="region" aria-label="设备接入面板">
+        <div class="device-panel-head">
+          <div>
+            <p class="eyebrow">设备同步</p>
+            <h2>把可穿戴数据接进今日判断</h2>
+          </div>
+          <button class="device-close" type="button" data-device-panel-toggle aria-label="收起设备接入面板">×</button>
+        </div>
+        <div class="device-sync-stage" aria-label="设备同步动画">
+          <div class="watch-face">
+            <span></span>
+            <strong>WATCH</strong>
+            <small>72 bpm</small>
+          </div>
+          <div class="sync-beam">
+            <i></i><i></i><i></i>
+          </div>
+          <div class="glucose-node">
+            <strong>6.8</strong>
+            <span>餐后估计</span>
+          </div>
+        </div>
+        <div class="device-list">
+          ${hardwareDevices
+            .map((device) => {
+              const connected = Boolean(state.connectedDevices[device.id]);
+              return `
+                <button class="device-row ${device.accent}${connected ? " connected" : ""}" type="button" data-device-connect="${device.id}">
+                  <span class="device-icon" aria-hidden="true"></span>
+                  <span>
+                    <strong>${device.name}</strong>
+                    <small>${device.signal}</small>
+                  </span>
+                  <em>${connected ? "已接入" : device.status}</em>
+                </button>
+              `;
+            })
+            .join("")}
+        </div>
+        <p class="device-note">当前为演示接入状态；真实接入会在获得授权后同步步数、睡眠、心率和餐后曲线，用于生成更贴近当天的提醒。</p>
+      </div>
+    </div>
   `;
 }
 
@@ -1653,6 +1738,24 @@ function bindViewEvents() {
       setView("tools");
     });
   });
+  document.querySelectorAll("[data-device-panel-toggle]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.devicePanelOpen = !state.devicePanelOpen;
+      render();
+    });
+  });
+  document.querySelectorAll("[data-device-connect]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const deviceId = button.dataset.deviceConnect;
+      state.connectedDevices = {
+        ...state.connectedDevices,
+        [deviceId]: !state.connectedDevices[deviceId],
+      };
+      localStorage.setItem("glucolit:devices", JSON.stringify(state.connectedDevices));
+      state.devicePanelOpen = true;
+      render();
+    });
+  });
   document.querySelectorAll("[data-photo-trigger]").forEach((button) => {
     button.addEventListener("click", () => {
       document.querySelector("#photoInput")?.click();
@@ -1838,9 +1941,12 @@ registerForm.addEventListener("submit", async (event) => {
 resetUser.addEventListener("click", () => {
   localStorage.removeItem("glucolit:user");
   localStorage.removeItem("glucolit:session");
+  localStorage.removeItem("glucolit:devices");
   state.user = null;
   state.sessionToken = null;
   state.appState = null;
+  state.connectedDevices = {};
+  state.devicePanelOpen = false;
   clearSelectedImage();
   render();
 });
