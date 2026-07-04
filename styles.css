@@ -703,6 +703,307 @@ button {
   white-space: normal;
 }
 
+.meal-analysis {
+  gap: 14px;
+}
+
+.meal-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  border: 1px solid rgba(200, 217, 204, 0.95);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(255, 253, 247, 0.98), rgba(238, 246, 237, 0.86)),
+    var(--surface);
+  padding: 14px;
+}
+
+.meal-hero.warn {
+  border-color: rgba(212, 139, 42, 0.42);
+  background: linear-gradient(135deg, rgba(255, 248, 235, 0.98), rgba(255, 253, 247, 0.92));
+}
+
+.meal-hero.danger {
+  border-color: rgba(223, 122, 85, 0.46);
+  background: linear-gradient(135deg, rgba(255, 240, 233, 0.98), rgba(255, 253, 247, 0.92));
+}
+
+.meal-hero h3 {
+  margin: 4px 0 0;
+  color: var(--ink);
+  font-size: 1.08rem;
+  line-height: 1.35;
+}
+
+.meal-risk-pill {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  border: 1px solid rgba(212, 139, 42, 0.38);
+  border-radius: 999px;
+  background: var(--amber-soft);
+  color: #8b4f08;
+  padding: 0 10px;
+  white-space: nowrap;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.meal-hero.good .meal-risk-pill {
+  border-color: rgba(116, 197, 154, 0.4);
+  background: var(--mint-soft);
+  color: var(--teal-strong);
+}
+
+.meal-hero.danger .meal-risk-pill {
+  border-color: rgba(223, 122, 85, 0.38);
+  background: var(--coral-soft);
+  color: #a1371b;
+}
+
+.meal-summary {
+  margin: 0;
+  border-left: 4px solid var(--sage);
+  border-radius: 0 16px 16px 0;
+  background: rgba(231, 245, 234, 0.68);
+  color: var(--ink);
+  padding: 11px 12px;
+  font-size: 0.92rem;
+  font-weight: 800;
+  line-height: 1.58;
+}
+
+.meal-section {
+  display: grid;
+  gap: 9px;
+}
+
+.meal-section h4 {
+  margin: 0;
+  color: var(--teal-strong);
+  font-size: 0.98rem;
+}
+
+.meal-plate-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.meal-plate-card {
+  min-height: 92px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 253, 247, 0.92);
+  padding: 12px;
+  box-shadow: 0 8px 18px rgba(74, 101, 85, 0.08);
+}
+
+.meal-plate-card span {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--mint-soft);
+  color: var(--teal-strong);
+  padding: 0 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.meal-plate-card.staple span {
+  background: var(--amber-soft);
+  color: #8b4f08;
+}
+
+.meal-plate-card.cooking span {
+  background: var(--coral-soft);
+  color: #a1371b;
+}
+
+.meal-plate-card strong {
+  display: block;
+  margin-top: 9px;
+  color: var(--ink);
+  font-size: 0.9rem;
+  line-height: 1.42;
+}
+
+.meal-insight-list,
+.meal-nutrition-grid,
+.meal-action-list {
+  display: grid;
+  gap: 9px;
+}
+
+.meal-insight-card,
+.meal-nutrition-card,
+.meal-action-list div {
+  border: 1px solid var(--line);
+  border-left-width: 5px;
+  border-radius: 16px;
+  background: rgba(255, 253, 247, 0.92);
+  padding: 11px 12px;
+}
+
+.meal-insight-card.good,
+.meal-nutrition-card.good {
+  border-left-color: var(--mint);
+}
+
+.meal-insight-card.warn,
+.meal-nutrition-card.warn {
+  border-left-color: var(--amber);
+}
+
+.meal-insight-card.danger,
+.meal-nutrition-card.danger {
+  border-left-color: #c2410c;
+  background: linear-gradient(90deg, rgba(255, 240, 233, 0.72), rgba(255, 253, 247, 0.94));
+}
+
+.meal-insight-card > span {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  border-radius: 999px;
+  background: rgba(238, 246, 237, 0.9);
+  color: var(--teal-strong);
+  padding: 0 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.meal-insight-card.danger > span {
+  background: var(--coral-soft);
+  color: #a1371b;
+}
+
+.meal-insight-card.warn > span {
+  background: var(--amber-soft);
+  color: #8b4f08;
+}
+
+.meal-insight-card p,
+.meal-nutrition-card p,
+.meal-action-list p {
+  margin: 8px 0 0;
+  color: var(--ink);
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.meal-nutrition-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.meal-nutrition-title strong {
+  min-width: 0;
+  color: var(--ink);
+  font-size: 0.94rem;
+  line-height: 1.3;
+}
+
+.meal-nutrition-title span {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: rgba(238, 246, 237, 0.88);
+  color: var(--teal-strong);
+  padding: 5px 8px;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.meal-metric-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.meal-metric-row em {
+  border: 1px solid rgba(116, 197, 154, 0.38);
+  border-radius: 999px;
+  background: var(--mint-soft);
+  color: var(--teal-strong);
+  padding: 5px 8px;
+  font-size: 0.74rem;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.meal-metric-row em.warn {
+  border-color: rgba(212, 139, 42, 0.38);
+  background: var(--amber-soft);
+  color: #8b4f08;
+}
+
+.meal-metric-row em.danger {
+  border-color: rgba(223, 122, 85, 0.38);
+  background: var(--coral-soft);
+  color: #a1371b;
+}
+
+.meal-action-list div {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  border-left-color: var(--sage);
+}
+
+.meal-action-list span {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #6fa77e, var(--sage-deep));
+  color: white;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.meal-action-list p {
+  margin: 2px 0 0;
+}
+
+.meal-mark {
+  border-radius: 7px;
+  padding: 0 3px;
+  background: transparent;
+  color: inherit;
+  font-weight: 900;
+}
+
+.meal-mark.danger {
+  background: rgba(255, 240, 233, 0.95);
+  color: #b42318;
+}
+
+.meal-mark.warn {
+  background: rgba(255, 240, 212, 0.9);
+  color: #8b4f08;
+}
+
+.meal-mark.good {
+  background: rgba(231, 245, 234, 0.92);
+  color: var(--teal-strong);
+}
+
+.meal-source {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
 .report-section {
   display: grid;
   gap: 9px;

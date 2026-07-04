@@ -381,23 +381,7 @@ function renderAnalysis(analysis) {
     `;
   }
   if (analysis.type === "meal") {
-    return `
-      <div class="analysis-card stack">
-        <div class="panel-header"><h3>${analysis.title}</h3><span class="risk-pill">${sourceLabel}</span></div>
-        <p class="muted">${analysis.summary}</p>
-        ${result.plate ? `<div class="field-table">
-          <div><strong>主食</strong><span>${escapeHtml(result.plate.staple || "")}</span></div>
-          <div><strong>蛋白质</strong><span>${escapeHtml(result.plate.protein || "")}</span></div>
-          <div><strong>蔬菜</strong><span>${escapeHtml(result.plate.vegetables || "")}</span></div>
-          <div><strong>烹饪</strong><span>${escapeHtml(result.plate.cooking || "")}</span></div>
-        </div>` : ""}
-        <p class="helper">碳水风险：${escapeHtml(result.carbRisk || "中")}</p>
-        <ul class="warning-list">${result.observations.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
-        ${result.nutrition_notes?.length ? `<p class="helper">GI/GL/II 参考：${result.nutrition_notes.map(escapeHtml).join("；")}</p>` : ""}
-        ${result.meal_order?.length ? `<p class="helper">进餐顺序：${result.meal_order.map(escapeHtml).join("；")}</p>` : ""}
-        <p class="helper">替换建议：${result.swaps.map(escapeHtml).join("；")}</p>
-      </div>
-    `;
+    return renderMealAnalysis(analysis, sourceLabel);
   }
   return `
     <div class="analysis-card stack">
@@ -408,6 +392,150 @@ function renderAnalysis(analysis) {
       <p class="helper">${result.boundary}</p>
     </div>
   `;
+}
+
+function renderMealAnalysis(analysis, sourceLabel) {
+  const result = analysis.result;
+  const risk = mealRisk(result.carbRisk || "中");
+  return `
+    <div class="analysis-card meal-analysis stack">
+      <div class="meal-hero ${risk.className}">
+        <div>
+          <p class="eyebrow">餐盘识别</p>
+          <h3>${escapeHtml(analysis.title)}</h3>
+        </div>
+        <span class="meal-risk-pill">${escapeHtml(risk.label)}</span>
+      </div>
+      <p class="meal-summary">${highlightMealText(analysis.summary)}</p>
+      ${renderMealPlate(result.plate)}
+      ${renderMealInsights(result.observations || [])}
+      ${renderMealNutritionCards(result.nutrition_notes || [])}
+      ${renderMealActionSection("建议吃法", result.meal_order || [])}
+      ${renderMealActionSection("替换建议", result.swaps || [])}
+      <p class="meal-source">${escapeHtml(sourceLabel)} · 图片估计结果请按实际摄入量确认</p>
+    </div>
+  `;
+}
+
+function mealRisk(value) {
+  if (value === "偏高") return { label: "波动风险偏高", className: "danger" };
+  if (value === "低") return { label: "波动风险较低", className: "good" };
+  return { label: "波动风险中等", className: "warn" };
+}
+
+function renderMealPlate(plate) {
+  if (!plate) return "";
+  const cards = [
+    { label: "主食", value: plate.staple || "未明显看到", tone: "staple" },
+    { label: "蛋白质", value: plate.protein || "未明显看到", tone: "protein" },
+    { label: "蔬菜", value: plate.vegetables || "未明显看到", tone: "vegetable" },
+    { label: "烹饪", value: plate.cooking || "未识别", tone: "cooking" },
+  ];
+  return `
+    <section class="meal-section">
+      <h4>餐盘结构</h4>
+      <div class="meal-plate-grid">
+        ${cards.map((item) => `<div class="meal-plate-card ${item.tone}"><span>${escapeHtml(item.label)}</span><strong>${highlightMealText(item.value)}</strong></div>`).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderMealInsights(items) {
+  if (!items.length) return "";
+  return `
+    <section class="meal-section">
+      <h4>重点信号</h4>
+      <div class="meal-insight-list">
+        ${items.map((item) => {
+          const severity = mealSeverity(item);
+          return `<div class="meal-insight-card ${severity.className}"><span>${severity.label}</span><p>${highlightMealText(item)}</p></div>`;
+        }).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderMealNutritionCards(notes) {
+  if (!notes.length) return "";
+  return `
+    <section class="meal-section">
+      <h4>GI / GL / II 参考</h4>
+      <div class="meal-nutrition-grid">
+        ${notes.map(renderMealNutritionCard).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderMealNutritionCard(note) {
+  const parsed = parseNutritionNote(note);
+  return `
+    <article class="meal-nutrition-card ${mealSeverity(note).className}">
+      <div class="meal-nutrition-title">
+        <strong>${escapeHtml(parsed.title)}</strong>
+        <span>${escapeHtml(parsed.badge)}</span>
+      </div>
+      ${parsed.metrics.length ? `<div class="meal-metric-row">${parsed.metrics.map((metric) => `<em class="${metric.tone}">${escapeHtml(metric.label)} ${escapeHtml(metric.value)}</em>`).join("")}</div>` : ""}
+      <p>${highlightMealText(parsed.detail)}</p>
+    </article>
+  `;
+}
+
+function parseNutritionNote(note) {
+  const [rawTitle, ...rest] = String(note).split(/[：:]/);
+  const detail = rest.join("：") || String(note);
+  const metrics = [...String(note).matchAll(/\b(GI|GL|II)\s*([0-9.]+)/g)].map((match) => {
+    const label = match[1];
+    const value = match[2];
+    return { label, value, tone: mealMetricTone(label, Number(value)) };
+  });
+  const badge = /高|偏高|汤汁|油脂|加速/.test(note) ? "重点关注" : /中/.test(note) ? "适量观察" : "较稳";
+  return { title: rawTitle || "食物参考", detail, metrics, badge };
+}
+
+function mealMetricTone(label, value) {
+  if (label === "GI") return value >= 70 ? "danger" : value >= 56 ? "warn" : "good";
+  if (label === "GL") return value >= 20 ? "danger" : value >= 11 ? "warn" : "good";
+  if (label === "II") return value >= 70 ? "danger" : value >= 40 ? "warn" : "good";
+  return "good";
+}
+
+function renderMealActionSection(title, items) {
+  if (!items.length) return "";
+  return `
+    <section class="meal-section">
+      <h4>${escapeHtml(title)}</h4>
+      <div class="meal-action-list">
+        ${items.map((item, index) => `<div><span>${index + 1}</span><p>${highlightMealText(item)}</p></div>`).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function mealSeverity(text) {
+  if (/偏高|高 GL|高 II|汤汁|油脂|拌饭|加速|共享|实际摄入|注意|风险/.test(text)) {
+    return { className: "danger", label: "重点" };
+  }
+  if (/中等|中 II|主食|份量|确认|观察|可接受/.test(text)) {
+    return { className: "warn", label: "观察" };
+  }
+  return { className: "good", label: "稳定" };
+}
+
+function highlightMealText(text) {
+  const safe = escapeHtml(text);
+  return safe.replace(
+    /(偏高|高 GL|高 II|汤汁|油脂|拌饭|加速|共享餐桌|实际摄入量|主食|份量|中等|低 GL|低 II|GI\s*[0-9.]+|GL\s*[0-9.]+|II\s*[0-9.]+)/g,
+    (match) => {
+      const tone = /偏高|高 GL|高 II|汤汁|油脂|拌饭|加速|共享|实际/.test(match)
+        ? "danger"
+        : /低 GL|低 II/.test(match)
+          ? "good"
+          : "warn";
+      return `<mark class="meal-mark ${tone}">${match}</mark>`;
+    },
+  );
 }
 
 function renderReportStandardTable(rows) {
