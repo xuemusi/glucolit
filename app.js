@@ -15,6 +15,7 @@ const state = {
   latestAnalysis: null,
   latestAnalysisMeta: null,
   selectedFileName: "",
+  selectedImagePreview: "",
   selectedContent: null,
   streamText: "",
   streamStatus: "",
@@ -93,20 +94,21 @@ async function readAnalysisStream(response) {
     const payload = JSON.parse(dataLines.join("\n"));
     if (event === "meta") {
       state.latestAnalysisMeta = { fallback: payload.fallback, model: payload.model, thinking: payload.thinking };
-      state.streamStatus = payload.thinking === "disabled" ? "已关闭思考模式，正在流式识别..." : "正在流式识别...";
-      render();
+      state.streamStatus = "正在看清图片里的关键信息";
+      updateStreamOutput();
     }
     if (event === "token") {
       state.streamText += payload.content || "";
-      state.streamStatus = "模型正在输出结构化结果...";
-      render();
+      state.streamStatus = "正在整理成你能直接用的建议";
+      updateStreamOutput();
     }
     if (event === "fallback") {
-      state.streamStatus = payload.message || "已切换兜底结果";
-      render();
+      state.streamStatus = payload.message ? "图片信息不够稳定，先给你一份参考建议" : "先给你一份参考建议";
+      updateStreamOutput();
     }
     if (event === "done") {
       applyAnalysisResult(payload);
+      updateStreamOutput();
     }
   };
 
@@ -124,7 +126,7 @@ async function readAnalysisStream(response) {
 function applyAnalysisResult(data) {
   state.latestAnalysis = data.analysis;
   state.latestAnalysisMeta = { fallback: data.fallback, model: data.model, model_error: data.model_error };
-  state.streamStatus = data.fallback ? "已使用兜底结果" : "识别完成";
+  state.streamStatus = data.fallback ? "已整理参考建议" : "建议已生成";
 }
 
 function saveSession(data) {
@@ -282,16 +284,18 @@ function renderTools() {
       <div class="scanner-panel stack">
         <div class="panel-header">
           <h2>${scannerTitle(state.selectedTool)}</h2>
-          <span class="risk-pill">${state.loading ? "流式识别中" : state.latestAnalysisMeta?.fallback === false ? "模型分析" : "失败自动兜底"}</span>
+          <span class="risk-pill">${scannerStateLabel()}</span>
         </div>
-        <div class="scanner-frame">
+        <div class="scanner-frame${state.selectedImagePreview ? " has-preview" : ""}">
           <div class="scanner-line"></div>
-          <strong>${state.selectedFileName || scannerHint(state.selectedTool)}</strong>
-          <span>${state.selectedFileName ? "已选择图片，模型会边识别边输出结果" : "支持拍照/相册；识别结果会流式显示"}</span>
+          ${state.selectedImagePreview ? renderScannerPreview() : `
+            <strong>${scannerHint(state.selectedTool)}</strong>
+            <span>${scannerIdleCopy(state.selectedTool)}</span>
+          `}
         </div>
         <input class="file-input" id="photoInput" type="file" accept="image/*">
         <div class="tool-actions">
-          <button class="primary-button" type="button" data-photo-trigger>${state.loading ? "正在识别关键信息..." : "拍照上传"}</button>
+          <button class="primary-button" type="button" data-photo-trigger>${state.loading ? "正在为你分析..." : "拍照上传"}</button>
           <button class="secondary-button" type="button" data-analyze="${state.selectedTool}">使用样例</button>
         </div>
       </div>
@@ -299,6 +303,16 @@ function renderTools() {
       ${state.latestAnalysis ? renderAnalysis(state.latestAnalysis) : ""}
       ${boundary()}
     </section>
+  `;
+}
+
+function renderScannerPreview() {
+  return `
+    <img class="scanner-preview" src="${escapeHtml(state.selectedImagePreview)}" alt="已上传图片预览">
+    <div class="scanner-caption">
+      <strong>${escapeHtml(state.selectedFileName || "已选择图片")}</strong>
+      <span>${scannerSelectedCopy(state.selectedTool)}</span>
+    </div>
   `;
 }
 
@@ -320,12 +334,34 @@ function scannerHint(type) {
   return "对准配料和营养成分表";
 }
 
+function scannerStateLabel() {
+  if (state.loading) return "正在读取";
+  if (state.selectedFileName && !state.latestAnalysis && state.streamStatus) return "请重试";
+  if (state.latestAnalysisMeta?.fallback === false) return "已生成建议";
+  if (state.latestAnalysis) return "参考建议";
+  return "可拍照上传";
+}
+
+function scannerIdleCopy(type) {
+  if (type === "report") return "拍清楚指标和参考范围，我会帮你圈出需要校对的地方";
+  if (type === "meal") return "拍完整餐盘，我会看主食、蛋白、蔬菜和烹饪方式";
+  return "拍清楚配料表和营养成分，我会帮你判断适不适合常买";
+}
+
+function scannerSelectedCopy(type) {
+  if (!state.loading && state.latestAnalysis) return "已根据这张图生成建议，可重新拍照替换";
+  if (!state.loading && state.streamStatus) return "这张图已保留，可重新拍照再试";
+  if (type === "report") return "已收到图片，正在找血糖、胰岛素和 HbA1c 等关键项";
+  if (type === "meal") return "已收到图片，正在看餐盘结构和餐后波动风险";
+  return "已收到图片，正在看添加糖、膳食纤维、蛋白质和碳水";
+}
+
 function renderAnalysis(analysis) {
   const result = analysis.result;
   const sourceLabel =
     state.latestAnalysisMeta?.fallback === false
-      ? `模型分析 · ${state.latestAnalysisMeta.model || "kimi-k2.6"}`
-      : "演示兜底结果";
+      ? "已生成建议"
+      : "参考建议";
   if (analysis.type === "report") {
     return `
       <div class="analysis-card stack">
@@ -373,25 +409,55 @@ function renderAnalysis(analysis) {
 }
 
 function renderStreamOutput() {
-  const readable = streamReadableText(state.streamText);
+  const readable = streamReadableText(state.streamText, state.selectedTool);
   return `
-    <div class="stream-card" aria-live="polite">
+    <div class="stream-card" aria-live="polite" data-stream-card>
       <div class="stream-header">
-        <span>${state.streamStatus || "准备识别..."}</span>
+        <span data-stream-status>${state.streamStatus || "准备读取图片"}</span>
         <i></i>
       </div>
-      <p class="typewriter-text">${escapeHtml(readable || "等待模型返回第一段内容...")}</p>
+      <p class="typewriter-text" data-stream-text>${escapeHtml(readable || streamPlaceholder(state.selectedTool))}</p>
     </div>
   `;
 }
 
-function streamReadableText(raw) {
+function updateStreamOutput() {
+  const card = document.querySelector("[data-stream-card]");
+  if (!card) {
+    if (state.view === "tools") render();
+    return;
+  }
+
+  const status = card.querySelector("[data-stream-status]");
+  const text = card.querySelector("[data-stream-text]");
+  if (status) status.textContent = state.streamStatus || "准备读取图片";
+  if (text) text.textContent = streamReadableText(state.streamText, state.selectedTool) || streamPlaceholder(state.selectedTool);
+}
+
+function streamReadableText(raw, type) {
   const cleaned = raw.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
-  const summary = cleaned.match(/"summary"\s*:\s*"([^"]*)/);
-  if (summary?.[1]) return summary[1];
-  const title = cleaned.match(/"title"\s*:\s*"([^"]*)/);
-  if (title?.[1]) return title[1];
-  return cleaned.slice(0, 220);
+  if (!cleaned) return "";
+
+  const directFields = ["summary", "interpretation", "boundary", "carbRisk"];
+  for (const field of directFields) {
+    const match = cleaned.match(new RegExp(`"${field}"\\s*:\\s*"([^"]*)`));
+    if (match?.[1]) return match[1];
+  }
+
+  const listFields = ["key_findings", "action_suggestions", "observations", "reasons", "swaps", "alternatives"];
+  for (const field of listFields) {
+    const match = cleaned.match(new RegExp(`"${field}"\\s*:\\s*\\[[\\s\\S]*?"([^"]{6,})`));
+    if (match?.[1]) return match[1];
+  }
+
+  if (/^[{\[]/.test(cleaned) || /"\w+"\s*:/.test(cleaned)) return streamPlaceholder(type);
+  return cleaned.slice(0, 160);
+}
+
+function streamPlaceholder(type) {
+  if (type === "report") return "我会先提取关键指标，再提醒你哪些数值需要人工确认。";
+  if (type === "meal") return "我会先看餐盘里主食、蛋白质和蔬菜的比例，再给出更稳的吃法。";
+  return "我会先看添加糖位置、膳食纤维、蛋白质和每份碳水，再给出购买建议。";
 }
 
 function escapeHtml(value) {
@@ -850,7 +916,7 @@ function bindViewEvents() {
     button.addEventListener("click", () => {
       state.selectedTool = button.dataset.tool;
       state.latestAnalysis = null;
-      state.selectedFileName = "";
+      clearSelectedImage();
       render();
     });
   });
@@ -858,7 +924,7 @@ function bindViewEvents() {
     button.addEventListener("click", () => {
       state.selectedTool = button.dataset.toolShortcut;
       state.latestAnalysis = null;
-      state.selectedFileName = "";
+      clearSelectedImage();
       setView("tools");
     });
   });
@@ -871,7 +937,7 @@ function bindViewEvents() {
     input.addEventListener("change", async () => {
       const file = input.files?.[0];
       if (!file) return;
-      state.selectedFileName = file.name || "已选择图片";
+      setSelectedImage(file);
       state.loading = true;
       state.latestAnalysis = null;
       state.latestAnalysisMeta = null;
@@ -898,6 +964,7 @@ function bindViewEvents() {
   });
   document.querySelectorAll("[data-analyze]").forEach((button) => {
     button.addEventListener("click", async () => {
+      clearSelectedImage();
       state.loading = true;
       state.latestAnalysis = null;
       state.latestAnalysisMeta = null;
@@ -946,6 +1013,22 @@ function bindViewEvents() {
   });
 }
 
+function setSelectedImage(file) {
+  clearSelectedImage();
+  state.selectedFileName = file.name || "已选择图片";
+  if (typeof URL !== "undefined" && URL.createObjectURL) {
+    state.selectedImagePreview = URL.createObjectURL(file);
+  }
+}
+
+function clearSelectedImage() {
+  if (state.selectedImagePreview && state.selectedImagePreview.startsWith("blob:") && typeof URL !== "undefined") {
+    URL.revokeObjectURL(state.selectedImagePreview);
+  }
+  state.selectedFileName = "";
+  state.selectedImagePreview = "";
+}
+
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -986,6 +1069,7 @@ resetUser.addEventListener("click", () => {
   state.user = null;
   state.sessionToken = null;
   state.appState = null;
+  clearSelectedImage();
   render();
 });
 
