@@ -11,7 +11,7 @@ TOKENDANCE_STREAM_ENABLED = "true"
 REPORT_NARRATIVE_BASE_URL = "https://88996api.cloud/v1"
 REPORT_NARRATIVE_MODEL = "gemini-2.5-pro-nothinking"
 LABEL_NARRATIVE_BASE_URL = "https://88996api.cloud/v1"
-LABEL_NARRATIVE_MODEL = "gpt-5.4-mini"
+LABEL_NARRATIVE_MODEL = "gemini-3.1-flash-lite-preview"
 
 [[d1_databases]]
 binding = "DB"
