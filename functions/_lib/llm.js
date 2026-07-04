@@ -477,8 +477,9 @@ function buildMealNarrativeMessages({ mealItems, rules }) {
     "2. 不使用绝对化禁令；用“优先、可以、建议、减少、替换、控制份量”表达。",
     "3. 不估算精确热量，只做结构、份量和餐后波动风险判断。",
     "4. 如果是多人共享餐桌，要提醒结果是按图片估计，实际摄入量需用户确认。",
-    "5. 必须优先使用 RULES.nutrition_knowledge.refs 里的 GI/GL/II 知识库，不要自己编造 GI/GL/II 数值。",
-    "6. 只输出 JSON：",
+    "5. 必须优先使用 RULES.nutrition_knowledge.refs 里的 GI/GL 知识库，不要自己编造 GI/GL 数值；不要在用户文案里展示 II/胰岛素指数。",
+    "6. 拍照分析结论区必须包含这句结构建议：这餐蛋白质偏少、主食偏精细时，提示“两个小调整：① 先吃菜和蛋白、最后吃主食；② 把 1/3 白米饭换成杂粮/杂豆。有助于平稳这餐的餐后血糖。”如当前餐盘不符合，也要保留“先吃菜和蛋白、最后吃主食”和“把 1/3 白米饭换成杂粮/杂豆”作为可选替换建议。",
+    "7. 只输出 JSON：",
     `{"title":"","summary":"","observations":[""],"swaps":[""],"meal_order":[""],"boundary":""}`,
     `ITEMS=${JSON.stringify(mealItems)}`,
     `RULES=${JSON.stringify(rules)}`,
@@ -911,7 +912,7 @@ function normalizeStructuredMeal(parsed, mealItems, rules, sample) {
       carbRisk: rules.carbRisk,
       observations: observations.length ? observations : [...rules.strengths, ...rules.watch],
       swaps: swaps.length ? swaps : fallbackMealSwaps(rules),
-      meal_order: mealOrder.length ? mealOrder : ["先吃青菜和鸡肉/鸡蛋，再吃主食；番茄蛋汤汁少拌饭。"],
+      meal_order: mealOrder.length ? mealOrder : ["两个小调整：① 先吃菜和蛋白、最后吃主食；② 把 1/3 白米饭换成杂粮/杂豆。有助于平稳这餐的餐后血糖。"],
       detected_items: mealItems,
       meal_rules: rules,
       nutrition_refs: rules.nutrition_knowledge.refs,
@@ -931,11 +932,15 @@ function buildNutritionNotes(refs) {
 }
 
 function buildMealSummary(rules) {
-  return `这餐蔬菜和蛋白质都比较充足，主食风险为${rules.carbRisk}；建议按实际摄入量确认米饭份量，并优先采用蔬菜、蛋白质、主食的进餐顺序。`;
+  return `这餐主食风险为${rules.carbRisk}；建议按实际摄入量确认米饭份量，优先先吃菜和蛋白、最后吃主食，必要时把 1/3 白米饭换成杂粮/杂豆。`;
 }
 
 function fallbackMealSwaps(rules) {
-  const swaps = ["主食按小半碗到一拳起步，根据饱腹感和餐后状态调整。", "饭后约 10-20 分钟轻松步行，观察餐后反应。"];
+  const swaps = [
+    "先吃菜和蛋白、最后吃主食；如果主食偏精细，把 1/3 白米饭换成杂粮/杂豆。",
+    "主食按小半碗到一拳起步，根据饱腹感和餐后状态调整。",
+    "餐后 15–30 分钟内轻松步行 15 分钟，观察餐后反应。",
+  ];
   if (rules.structure_scores.oil_sauce === "medium" || rules.structure_scores.oil_sauce === "high") {
     swaps.unshift("番茄蛋和炒菜汤汁少拌饭，减少额外油脂和汤汁带来的波动。");
   }

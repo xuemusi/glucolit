@@ -85,28 +85,33 @@ const categoryOrder = ["diet", "sleep", "exercise", "stress", "energy"];
 const actionContext = {
   diet: {
     source: "来自餐后峰值偏高",
-    rationale: "先调整主食份量和进食顺序，减少今晚餐后波动压力。",
-    fallback: "做不到时，只先把主食留到蔬菜和蛋白后面吃。",
+    rationale: "同一餐先吃菜和蛋白、后吃主食，通常比单纯少吃更容易执行，也更有助于平稳餐后血糖。",
+    fallback: "做不到换主食时，先把主食留到蔬菜和蛋白后面吃，也算完成。",
+    guard: "如出现心慌、手抖、出汗、头晕，请立即吃点含糖食物并尽快就医；正在用降糖药或胰岛素的人群尤其要注意。",
   },
   sleep: {
-    source: "来自昨晚睡眠不足",
-    rationale: "睡眠不足会影响第二天胰岛素敏感性，今晚先把入睡时间拉回稳定区间。",
-    fallback: "做不到早睡时，先完成睡前 10 分钟离屏。",
+    source: "来自近 3 天睡眠不足 7 小时",
+    rationale: "睡不够会让第二天血糖更难平稳，先把睡眠作为一个可执行行动闭环。",
+    fallback: "做不到提前 20 分钟时，先完成睡前 10 分钟离屏。",
+    guard: "如果长期失眠、夜间憋醒或白天明显嗜睡，请咨询医生排查睡眠问题。",
   },
   exercise: {
-    source: "来自餐后峰值偏高 + 连续 3 天未完成饭后步行",
-    rationale: "饭后轻活动是今天最直接的低风险干预，先完成它再看其他任务。",
-    fallback: "做不到 15-20 分钟时，饭后先走 8 分钟也算完成降级版。",
+    source: "来自餐后血糖峰值偏高 + 连续 3 天没完成饭后步行",
+    rationale: "餐后这段时间是血糖上升期，此时轻走动有助于平稳餐后血糖。今天优先安排在你峰值最高的那一餐（近期是晚餐）后。",
+    fallback: "没时间/体力不够？餐后先走 8 分钟，也算完成。",
+    guard: "如出现头晕、明显气促或身体不适，请立即停止并注意补水，必要时咨询医生。",
   },
   stress: {
     source: "来自压力状态偏紧绷",
-    rationale: "短呼吸练习能降低今晚继续靠零食或刷屏缓解压力的概率。",
-    fallback: "做不到 3 分钟时，先做 6 次慢呼吸。",
+    rationale: "你今天的压力偏紧绷。慢呼吸能帮你缓下来，也更容易避免晚上用零食或刷手机来解压。",
+    fallback: "不到 3 分钟？先做 6 次缓慢的深呼吸也可以。",
+    guard: "如果呼吸练习时出现胸闷、头晕或明显不适，请停止练习并按需就医。",
   },
   energy: {
     source: "来自下午精力偏低",
-    rationale: "下午困倦时更容易选择含糖饮料，先准备一个替代选择。",
-    fallback: "做不到完全替换时，先把含糖饮料减半。",
+    rationale: "下午困倦更容易伸手拿含糖饮料。先备好替代方案，帮助平稳这段时间的血糖与精力。",
+    fallback: "一下子戒不掉？先把这杯含糖饮料减半。",
+    guard: "含咖啡因的茶建议避开睡前几小时，以免影响睡眠；减少含糖饮料时也要留意低血糖不适。",
   },
 };
 
@@ -289,7 +294,7 @@ function renderHome() {
             <span>稳住节奏</span>
           </div>
           <div>
-            <p class="focus-copy">餐后峰值偏高叠加睡眠不足。今晚先完成饭后 15-20 分钟步行，不需要重启完整计划。</p>
+            <p class="focus-copy">餐后峰值偏高叠加睡眠不足。今天先完成峰值最高那餐后的轻走动，不需要重启完整计划。</p>
             <div class="soft-checks" aria-label="今日记录摘要">
               <span>饮食 2/3 记录</span>
               <span>睡眠 7.2 小时</span>
@@ -416,7 +421,7 @@ function buildHomeReminders(reasons = []) {
   const fallbacks = [
     {
       impact: "餐后回落可能变慢，晚间更容易疲惫。",
-      action: "晚餐主食少 1/3，饭后 15-20 分钟轻走。",
+      action: "餐后 15–30 分钟内散步 15 分钟，有助于平稳餐后血糖、舒缓情绪。",
     },
     {
       impact: "第二天胰岛素敏感性可能下降，空腹状态更容易波动。",
@@ -424,7 +429,7 @@ function buildHomeReminders(reasons = []) {
     },
     {
       impact: "连续记录变少后，更难判断哪些行动真的有效。",
-      action: "今天只补一个 8 分钟轻量版本也算完成。",
+      action: "今天只补一个餐后 8 分钟轻走版本也算完成。",
     },
   ];
 
@@ -440,14 +445,14 @@ function buildHomeReminders(reasons = []) {
       return {
         signal: reason,
         impact: "饭后活动中断后，餐后峰值更容易停留久一点。",
-        action: "今天做降级版：饭后轻走 8-10 分钟，完成一件即可。",
+        action: "今天做降级版：餐后先轻走 8 分钟，完成一件即可。",
       };
     }
     if (/餐后|晚餐|血糖|波动/.test(reason)) {
       return {
         signal: reason,
         impact: "晚餐后的波动会影响夜间恢复，也会影响第二天空腹状态。",
-        action: "晚餐先吃蔬菜和蛋白，主食少 1/3，饭后轻走 15 分钟。",
+        action: "餐后 15–30 分钟内散步 15 分钟，有助于平稳餐后血糖、舒缓情绪。",
       };
     }
     const fallback = fallbacks[index % fallbacks.length];
@@ -1007,7 +1012,7 @@ function mealMetricTone(label, value) {
 }
 
 function renderMealActionSection(title, items) {
-  const actionItems = title === "建议吃法" ? withMeal211(items) : items;
+  const actionItems = title === "建议吃法" ? withMealDefaultActions(items) : items;
   if (!actionItems.length) return "";
   return `
     <section class="meal-section">
@@ -1019,10 +1024,16 @@ function renderMealActionSection(title, items) {
   `;
 }
 
-function withMeal211(items) {
+function withMealDefaultActions(items) {
   const current = Array.isArray(items) ? items : [];
-  if (current.some((item) => /211|2\s*份蔬菜/.test(item))) return current;
-  return ["采用 211 餐盘法（2 份蔬菜、1 份蛋白质、1 份主食），先按这个比例看当前餐盘，再调整主食份量。", ...current];
+  const defaults = [];
+  if (!current.some((item) => /211|2\s*份蔬菜/.test(item))) {
+    defaults.push("采用 211 餐盘法（2 份蔬菜、1 份蛋白质、1 份主食），先按这个比例看当前餐盘，再调整主食份量。");
+  }
+  if (!current.some((item) => /先吃.*(菜|蔬菜).*蛋白.*(后|最后).*主食|1\/3.*(杂粮|杂豆)/.test(item))) {
+    defaults.push("这餐蛋白质偏少、主食偏精细时，两个小调整：① 先吃菜和蛋白、最后吃主食；② 把 1/3 白米饭换成杂粮/杂豆。有助于平稳这餐的餐后血糖。");
+  }
+  return [...defaults, ...current];
 }
 
 function mealSeverity(text) {
@@ -1236,7 +1247,7 @@ function renderActions() {
         <div class="hero-top">
           <div>
             <p class="eyebrow">今日行动</p>
-            <h2>${primaryDone ? "主行动已完成" : "先完成 1 个主行动"}</h2>
+            <h2>${primaryDone ? "今天，已做好这 1 件事" : "今天，先做好这 1 件事"}</h2>
           </div>
           ${
             primary
@@ -1244,7 +1255,7 @@ function renderActions() {
               : ""
           }
         </div>
-        <p class="muted">${primaryContext.source}。今天先把最高优先级做完，其他行动只作为可选加分。</p>
+        <p class="muted">这条是根据你近期数据挑出的当日重点：${primaryContext.source.replace(/^来自/, "")}。先完成它，其他都算加分，不必有压力。</p>
       </div>
       ${primary ? `<div class="action-section"><p class="eyebrow">主行动 ${primaryDone ? 1 : 0}/1</p>${renderActionCard(primary, true)}</div>` : ""}
       <div class="action-section">
@@ -1254,6 +1265,7 @@ function renderActions() {
         </div>
         ${optional.map((action) => renderActionCard(action, false)).join("")}
       </div>
+      ${renderCrisisSupportCard()}
       ${boundary()}
     </section>
   `;
@@ -1261,7 +1273,12 @@ function renderActions() {
 
 function getActionContext(action) {
   if (!action) {
-    return { source: "来自今日关注信号", rationale: "先完成一个低门槛行动。", fallback: "做不到时可以选择更轻的版本。" };
+    return {
+      source: "来自今日关注信号",
+      rationale: "先完成一个低门槛行动。",
+      fallback: "做不到时可以选择更轻的版本。",
+      guard: "如出现明显身体不适，请先停止行动并按需咨询医生。",
+    };
   }
   return actionContext[action.category] || actionContext.exercise;
 }
@@ -1274,9 +1291,13 @@ function renderActionCard(action, isPrimary = false) {
         <div>
           <span class="tag">${isPrimary ? "主行动" : action.title}</span>
           ${isPrimary ? `<h3>${action.title}</h3>` : ""}
-          <p class="muted">${action.detail}</p>
-          <p class="source-note"><strong>${context.source}</strong><span>${context.rationale}</span></p>
-          <p class="small">${action.status === "done" ? "已记录：今晚优先级完成，连续 3 天后再看趋势。" : context.fallback}</p>
+          <div class="action-steps">
+            <p><strong>行动</strong><span>${escapeHtml(action.detail)}</span></p>
+            <p><strong>为什么</strong><span>${escapeHtml(context.rationale)}</span></p>
+            <p><strong>降级版</strong><span>${escapeHtml(context.fallback)}</span></p>
+            <p class="guard"><strong>安全护栏</strong><span>${escapeHtml(context.guard)}</span></p>
+          </div>
+          ${action.status === "done" ? `<p class="small">已记录：今天主行动完成，连续 3 天后再看趋势。</p>` : ""}
         </div>
         <button class="checkbox ${action.status === "done" ? "done" : ""}" aria-label="完成${action.title}" type="button" data-action-id="${action.id}"></button>
       </div>
@@ -1292,14 +1313,30 @@ function renderCompanion() {
         <div>
           <p class="eyebrow">你来决定</p>
           <h2>AI 行动陪伴</h2>
-          <p class="muted">我看到你今天已经有几个关注信号。我们不用重启完整计划，先完成一件事：晚饭后走 15 分钟。</p>
+          <p class="muted">我看到你今天已经有几个关注信号。我们不用重启完整计划，先完成一件事：餐后 15–30 分钟内轻走 15 分钟。</p>
         </div>
         <div class="wave" aria-hidden="true"></div>
         <button class="primary-button" type="button" data-companion-confirm>愿意，把它设为今天的行动</button>
         <button class="secondary-button" type="button" data-companion-light>换一个轻一点的</button>
       </div>
+      ${renderCrisisSupportCard()}
       ${boundary()}
     </section>
+  `;
+}
+
+function renderCrisisSupportCard() {
+  return `
+    <div class="card crisis-card">
+      <h2>需要立即支持时</h2>
+      <p class="muted">如果你感到情绪难以承受，或出现伤害自己的念头，你并不孤单，请立即寻求帮助：</p>
+      <ul class="content-list">
+        <li>全国心理援助热线：12356（一键拨打）</li>
+        <li>危及生命的紧急情况：拨打 120 / 110</li>
+        <li>也可以联系你信任的家人或朋友陪在身边</li>
+      </ul>
+      <a class="primary-button support-call" href="tel:12356">我需要帮助：拨打 12356</a>
+    </div>
   `;
 }
 

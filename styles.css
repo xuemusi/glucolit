@@ -2241,6 +2241,42 @@ button {
   font-size: 0.78rem;
 }
 
+.action-steps {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.action-steps p {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 8px;
+  margin: 0;
+  border: 1px solid rgba(223, 233, 223, 0.88);
+  border-radius: 13px;
+  background: rgba(255, 253, 247, 0.78);
+  padding: 9px 10px;
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.action-steps strong {
+  color: var(--teal-strong);
+  font-size: 0.74rem;
+  font-weight: 900;
+}
+
+.action-steps .guard {
+  border-color: rgba(223, 122, 85, 0.32);
+  background: rgba(255, 240, 233, 0.58);
+}
+
+.action-steps .guard strong {
+  color: #a1371b;
+}
+
 .checkbox {
   position: relative;
   width: 30px;
@@ -2278,6 +2314,22 @@ button {
   background:
     linear-gradient(180deg, rgba(238, 246, 243, 0.9), rgba(255, 253, 247, 0.94)),
     var(--surface);
+}
+
+.crisis-card {
+  display: grid;
+  gap: 10px;
+  border-color: rgba(223, 122, 85, 0.36);
+  background:
+    linear-gradient(135deg, rgba(255, 240, 233, 0.72), rgba(255, 253, 247, 0.96) 62%, rgba(231, 245, 234, 0.42)),
+    var(--surface);
+}
+
+.support-call {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
 }
 
 .avatar {
