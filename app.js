@@ -446,11 +446,19 @@ function renderMealInsights(items) {
   return `
     <section class="meal-section">
       <h4>重点信号</h4>
-      <div class="meal-insight-list">
+      <div class="meal-table-wrap">
+        <table class="meal-table meal-insight-table">
+          <thead><tr><th>判断</th><th>重点信号</th></tr></thead>
+          <tbody>
         ${items.map((item) => {
           const severity = mealSeverity(item);
-          return `<div class="meal-insight-card ${severity.className}"><span>${severity.label}</span><p>${highlightMealText(item)}</p></div>`;
+          return `<tr>
+            <td>${renderMealStatusPill(severity.className, severity.label)}</td>
+            <td>${highlightMealText(item)}</td>
+          </tr>`;
         }).join("")}
+          </tbody>
+        </table>
       </div>
     </section>
   `;
@@ -462,24 +470,38 @@ function renderMealNutritionCards(refs, fallbackNotes) {
   return `
     <section class="meal-section">
       <h4>GI / GL / 营养素参考</h4>
-      <div class="meal-nutrition-grid">
-        ${cards.map(renderMealNutritionCard).join("")}
+      <div class="meal-table-wrap">
+        <table class="meal-table meal-nutrition-table">
+          <thead><tr><th>食物</th><th>状态</th><th>GI</th><th>GL</th><th>营养素</th><th>说明</th></tr></thead>
+          <tbody>${cards.map(renderMealNutritionRow).join("")}</tbody>
+        </table>
       </div>
     </section>
   `;
 }
 
-function renderMealNutritionCard(card) {
+function renderMealNutritionRow(card) {
+  const gi = mealMetricValue(card, "GI");
+  const gl = mealMetricValue(card, "GL");
+  const nutrient = mealMetricValue(card, "营养素");
   return `
-    <article class="meal-nutrition-card ${card.severity}">
-      <div class="meal-nutrition-title">
-        <strong>${escapeHtml(card.title)}</strong>
-        <span>${escapeHtml(card.badge)}</span>
-      </div>
-      <div class="meal-metric-row">${card.metrics.map((metric) => `<em class="${metric.tone}">${escapeHtml(metric.label)} ${escapeHtml(metric.value)}</em>`).join("")}</div>
-      <p>${highlightMealText(card.detail)}</p>
-    </article>
+    <tr class="${escapeHtml(card.severity)}">
+      <td><strong>${escapeHtml(card.title)}</strong></td>
+      <td>${renderMealStatusPill(card.severity, card.badge)}</td>
+      <td><span class="meal-metric ${escapeHtml(gi.tone)}">${escapeHtml(gi.value)}</span></td>
+      <td><span class="meal-metric ${escapeHtml(gl.tone)}">${escapeHtml(gl.value)}</span></td>
+      <td><span class="meal-metric ${escapeHtml(nutrient.tone)}">${escapeHtml(nutrient.value)}</span></td>
+      <td>${highlightMealText(card.detail)}</td>
+    </tr>
   `;
+}
+
+function mealMetricValue(card, label) {
+  return card.metrics.find((metric) => metric.label === label) || { value: "-", tone: "good" };
+}
+
+function renderMealStatusPill(className, label) {
+  return `<span class="meal-status-pill ${escapeHtml(className)}">${escapeHtml(label)}</span>`;
 }
 
 function buildMealNutritionCards(refs, fallbackNotes) {
@@ -555,14 +577,21 @@ function cleanNutritionNote(note) {
   return String(note || "")
     .replace(/GI\/GL\/II/g, "GI/GL")
     .replace(/低或中等 II/g, "餐后反应较低到中等")
+    .replace(/中等 II/g, "餐后反应中等")
     .replace(/低 II/g, "餐后反应低")
     .replace(/中 II/g, "餐后反应中等")
     .replace(/高 II/g, "餐后反应偏高")
+    .replace(/II\s*较低/g, "餐后反应较低")
+    .replace(/II\s*较高/g, "餐后反应偏高")
     .replace(/胰岛素指数\s*[0-9.]+（低）/g, "餐后反应低")
     .replace(/胰岛素指数\s*[0-9.]+（中等）/g, "餐后反应中等")
     .replace(/胰岛素指数\s*[0-9.]+（高）/g, "餐后反应偏高")
     .replace(/胰岛素指数(?:为)?(低|中等|偏高|高)/g, "餐后反应$1")
+    .replace(/胰岛素指数/g, "餐后反应")
     .replace(/\bII\s*[0-9.]+(?:（[^）]*）)?[，,。；;]*/g, "")
+    .replace(/\/\s*(?=[，,。；;\s]|$)/g, "")
+    .replace(/\bII\b/g, "餐后反应")
+    .replace(/([^\s，。；、:：]+)≈[^\s，。；、:：]+/g, "$1")
     .replace(/\s+/g, " ")
     .trim();
 }
