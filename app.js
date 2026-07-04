@@ -346,8 +346,16 @@ function renderAnalysis(analysis) {
       <div class="analysis-card stack">
         <div class="panel-header"><h3>${analysis.title}</h3><span class="risk-pill">${sourceLabel}</span></div>
         <p class="muted">${analysis.summary}</p>
-        <ul class="warning-list">${result.observations.map((item) => `<li>${item}</li>`).join("")}</ul>
-        <p class="helper">替换建议：${result.swaps.join("；")}</p>
+        ${result.plate ? `<div class="field-table">
+          <div><strong>主食</strong><span>${escapeHtml(result.plate.staple || "")}</span></div>
+          <div><strong>蛋白质</strong><span>${escapeHtml(result.plate.protein || "")}</span></div>
+          <div><strong>蔬菜</strong><span>${escapeHtml(result.plate.vegetables || "")}</span></div>
+          <div><strong>烹饪</strong><span>${escapeHtml(result.plate.cooking || "")}</span></div>
+        </div>` : ""}
+        <p class="helper">碳水风险：${escapeHtml(result.carbRisk || "中")}</p>
+        <ul class="warning-list">${result.observations.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+        ${result.meal_order?.length ? `<p class="helper">进餐顺序：${result.meal_order.map(escapeHtml).join("；")}</p>` : ""}
+        <p class="helper">替换建议：${result.swaps.map(escapeHtml).join("；")}</p>
       </div>
     `;
   }

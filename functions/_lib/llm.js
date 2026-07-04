@@ -11,6 +11,9 @@ export async function analyzeWithModel({ env, type, photoName, imageData, mimeTy
   if (shouldUseStructuredReport(type, imageData, mimeType)) {
     return analyzeReportWithStructuredPipeline({ env, photoName, imageData, mimeType });
   }
+  if (shouldUseStructuredMeal(type, imageData, mimeType)) {
+    return analyzeMealWithStructuredPipeline({ env, photoName, imageData, mimeType });
+  }
 
   const baseUrl = env.TOKENDANCE_BASE_URL || "https://tokendance.space/gateway/v1";
   const model = env.TOKENDANCE_MODEL || "kimi-k2.6";
@@ -55,6 +58,9 @@ export async function analyzeWithModelStream({ env, type, photoName, imageData, 
 
   if (shouldUseStructuredReport(type, imageData, mimeType)) {
     return analyzeReportWithStructuredPipeline({ env, photoName, imageData, mimeType, onContent });
+  }
+  if (shouldUseStructuredMeal(type, imageData, mimeType)) {
+    return analyzeMealWithStructuredPipeline({ env, photoName, imageData, mimeType, onContent });
   }
 
   const baseUrl = env.TOKENDANCE_BASE_URL || "https://tokendance.space/gateway/v1";
@@ -142,6 +148,10 @@ function shouldUseStructuredReport(type, imageData, mimeType) {
   return type === "report" && Boolean(imageData && mimeType);
 }
 
+function shouldUseStructuredMeal(type, imageData, mimeType) {
+  return type === "meal" && Boolean(imageData && mimeType);
+}
+
 async function analyzeReportWithStructuredPipeline({ env, photoName, imageData, mimeType, onContent }) {
   const sample = analysisSamples.report;
   const baseUrl = env.TOKENDANCE_BASE_URL || "https://tokendance.space/gateway/v1";
@@ -184,6 +194,51 @@ async function analyzeReportWithStructuredPipeline({ env, photoName, imageData, 
   return {
     ...normalized,
     model: `${ocrModel} OCR + ${model}`,
+  };
+}
+
+async function analyzeMealWithStructuredPipeline({ env, photoName, imageData, mimeType, onContent }) {
+  const sample = analysisSamples.meal;
+  const baseUrl = env.TOKENDANCE_BASE_URL || "https://tokendance.space/gateway/v1";
+  const model = env.TOKENDANCE_MODEL || "kimi-k2.6";
+  const visionModel = env.TOKENDANCE_OCR_MODEL || "qwen3-vl-plus";
+  const thinkingEnabled = envFlag(env.TOKENDANCE_THINKING_ENABLED, false);
+
+  await onContent?.("正在识别餐盘中的主食、蛋白质、蔬菜和烹饪方式...\n");
+  const visionPayload = await requestChatJson({
+    env,
+    baseUrl,
+    model: visionModel,
+    thinkingEnabled,
+    temperature: 0,
+    maxTokens: 1600,
+    messages: buildMealVisionMessages({ photoName, imageData, mimeType }),
+  });
+  const mealItems = normalizeMealItems(visionPayload.items);
+  if (!mealItems.length) {
+    throw new Error("Meal vision did not return food items");
+  }
+
+  const rules = buildMealRules(mealItems, visionPayload.overall);
+  await onContent?.("已完成餐盘结构判断，正在生成糖前友好的替换建议...\n");
+
+  const narrativePayload = await requestChatJson({
+    env,
+    baseUrl,
+    model,
+    thinkingEnabled,
+    temperature: 0.1,
+    maxTokens: 1600,
+    messages: buildMealNarrativeMessages({ mealItems, rules }),
+  });
+
+  const normalized = normalizeStructuredMeal(narrativePayload, mealItems, rules, sample);
+  assertSafeCopy(normalized);
+  await onContent?.(`${normalized.summary}\n`);
+
+  return {
+    ...normalized,
+    model: `${visionModel} vision + ${model}`,
   };
 }
 
@@ -242,6 +297,33 @@ function buildReportOcrMessages({ photoName, imageData, mimeType }) {
   ];
 }
 
+function buildMealVisionMessages({ photoName, imageData, mimeType }) {
+  const prompt = [
+    "你只做餐盘视觉识别，不做诊断，不估算精确热量。",
+    photoName ? `文件名：${photoName}` : "",
+    "请识别图片中可见食物，按糖前生活方式支持所需维度分类。",
+    "只输出严格 JSON：",
+    `{"items":[{"name":"","category":"staple|protein|vegetable|fat_sauce|drink|fruit|unknown","portion":"small|medium|large|unknown","cooking":"steamed|boiled|stir_fried|fried|soup|raw|unknown","visible_clues":[""],"confidence":"low|medium|high"}],"overall":{"shared_table":true,"drink_visible":false,"sauce_oil_level":"low|medium|high|unknown","notes":[]}}`,
+    "不要补不存在的数据。不要 Markdown。不要解释。",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return [
+    {
+      role: "system",
+      content: "你是严谨的餐盘视觉识别引擎。只输出 JSON 对象。",
+    },
+    {
+      role: "user",
+      content: [
+        { type: "text", text: prompt },
+        { type: "image_url", image_url: { url: `data:${mimeType};base64,${imageData}` } },
+      ],
+    },
+  ];
+}
+
 function buildReportNarrativeMessages({ ocrRows, rules }) {
   const prompt = [
     "下面是视觉模型 OCR 后的检验数据，以及后端规则计算结果。",
@@ -260,6 +342,30 @@ function buildReportNarrativeMessages({ ocrRows, rules }) {
     {
       role: "system",
       content: "你是 GLUCOLIT 的糖尿病前期健康教育助手，擅长 OGTT、胰岛素和 C肽曲线解释。只输出 JSON 对象。",
+    },
+    { role: "user", content: prompt },
+  ];
+}
+
+function buildMealNarrativeMessages({ mealItems, rules }) {
+  const prompt = [
+    "下面是视觉模型识别的餐盘结构，以及后端规则判断结果。",
+    "请生成面向糖尿病前期/控糖用户的专业但温和的餐盘分析。",
+    "要求：",
+    "1. 不诊断、不治疗、不推荐药物，不说治愈、逆转、保证。",
+    "2. 不使用绝对化禁令；用“优先、可以、建议、减少、替换、控制份量”表达。",
+    "3. 不估算精确热量，只做结构、份量和餐后波动风险判断。",
+    "4. 如果是多人共享餐桌，要提醒结果是按图片估计，实际摄入量需用户确认。",
+    "5. 只输出 JSON：",
+    `{"title":"","summary":"","observations":[""],"swaps":[""],"meal_order":[""],"boundary":""}`,
+    `ITEMS=${JSON.stringify(mealItems)}`,
+    `RULES=${JSON.stringify(rules)}`,
+  ].join("\n");
+
+  return [
+    {
+      role: "system",
+      content: "你是 GLUCOLIT 的糖尿病前期餐盘分析助手，擅长把食物结构转成低门槛行动建议。只输出 JSON 对象。",
     },
     { role: "user", content: prompt },
   ];
@@ -454,6 +560,163 @@ function normalizeStructuredReport(parsed, ocrRows, rules, sample) {
       ai_source: "structured_ogtt_pipeline",
     },
   };
+}
+
+function normalizeMealItems(items) {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((item) => ({
+      name: cleanText(item.name),
+      category: normalizeMealCategory(item.category, item.name),
+      portion: ["small", "medium", "large", "unknown"].includes(item.portion) ? item.portion : "unknown",
+      cooking: ["steamed", "boiled", "stir_fried", "fried", "soup", "raw", "unknown"].includes(item.cooking) ? item.cooking : "unknown",
+      visible_clues: toTextArray(item.visible_clues),
+      confidence: ["low", "medium", "high"].includes(item.confidence) ? item.confidence : "medium",
+    }))
+    .filter((item) => item.name && item.category !== "unknown");
+}
+
+function normalizeMealCategory(category, name) {
+  const value = cleanText(category);
+  const label = cleanText(name);
+  if (["staple", "protein", "vegetable", "fat_sauce", "drink", "fruit"].includes(value)) return value;
+  if (/米饭|饭|面|馒头|饼|粥|粉|土豆|红薯|玉米/i.test(label)) return "staple";
+  if (/蛋|鸡|鱼|肉|虾|牛|猪|豆腐|豆|奶/i.test(label)) return "protein";
+  if (/菜|青菜|菠菜|番茄|西红柿|丝瓜|黄瓜|生菜|花菜/i.test(label)) return "vegetable";
+  if (/汤汁|酱|油|沙拉酱/i.test(label)) return "fat_sauce";
+  if (/饮料|奶茶|果汁|酒/i.test(label)) return "drink";
+  if (/水果|苹果|香蕉|橙|葡萄/i.test(label)) return "fruit";
+  return "unknown";
+}
+
+function buildMealRules(items, overall = {}) {
+  const byCategory = (category) => items.filter((item) => item.category === category);
+  const staples = byCategory("staple");
+  const proteins = byCategory("protein");
+  const vegetables = byCategory("vegetable");
+  const fatSauces = byCategory("fat_sauce");
+  const drinks = byCategory("drink");
+  const stapleScore = portionScore(staples);
+  const proteinScore = portionScore(proteins);
+  const vegetableScore = portionScore(vegetables);
+  const oilLevel = normalizeOilLevel(overall.sauce_oil_level, items);
+  const sharedTable = Boolean(overall.shared_table) || items.length >= 4;
+
+  let carbRisk = "中";
+  if (!staples.length || (stapleScore <= 1 && vegetableScore >= 2 && proteinScore >= 1)) {
+    carbRisk = "低";
+  }
+  if (stapleScore >= 3 && vegetableScore < 2) {
+    carbRisk = "偏高";
+  }
+  if (stapleScore >= 2 && proteinScore === 0) {
+    carbRisk = "偏高";
+  }
+
+  const strengths = [];
+  const watch = [];
+  if (vegetableScore >= 2) strengths.push("蔬菜量充足，有助于增加饱腹感并平缓餐后波动。");
+  if (proteinScore >= 2) strengths.push("蛋白质来源较丰富，适合搭配主食一起吃。");
+  if (staples.some((item) => /杂粮|糙米|黑米|紫米|燕麦/i.test(item.name))) strengths.push("主食看起来含有粗杂粮，比精白主食更适合控制餐后波动。");
+  if (stapleScore >= 2) watch.push("主食份量需要按个人目标确认，建议先以小半碗到一拳为起点。");
+  if (oilLevel === "medium" || oilLevel === "high") watch.push("番茄蛋和炒菜有汤汁/油脂，建议少拌饭，优先吃固体食物。");
+  if (drinks.length) watch.push("图片中有饮品时，需要确认是否含糖。");
+  if (sharedTable) watch.push("图片像多人共享餐桌，实际摄入量需要用户确认。");
+
+  return {
+    plate: {
+      staple: summarizeItems(staples) || "未明显看到主食",
+      protein: summarizeItems(proteins) || "未明显看到蛋白质",
+      vegetables: summarizeItems(vegetables) || "未明显看到蔬菜",
+      drink: summarizeItems(drinks) || "无明显饮品",
+      cooking: summarizeCooking(items, oilLevel),
+    },
+    carbRisk,
+    structure_scores: {
+      staple: stapleScore,
+      protein: proteinScore,
+      vegetables: vegetableScore,
+      oil_sauce: oilLevel,
+      shared_table: sharedTable,
+    },
+    strengths,
+    watch,
+  };
+}
+
+function portionScore(items) {
+  const score = { small: 1, medium: 2, large: 3, unknown: 1 };
+  return items.reduce((sum, item) => sum + (score[item.portion] || 1), 0);
+}
+
+function normalizeOilLevel(value, items) {
+  if (["low", "medium", "high", "unknown"].includes(value)) return value;
+  if (items.some((item) => item.category === "fat_sauce" || item.cooking === "fried")) return "high";
+  if (items.some((item) => item.cooking === "stir_fried")) return "medium";
+  return "unknown";
+}
+
+function summarizeItems(items) {
+  return items.map((item) => item.name).filter(Boolean).join("、");
+}
+
+function summarizeCooking(items, oilLevel) {
+  const cookingLabels = {
+    steamed: "蒸/清淡",
+    boiled: "水煮/焯",
+    stir_fried: "炒制",
+    fried: "煎炸",
+    soup: "汤汁",
+    raw: "生食",
+    unknown: "",
+  };
+  const labels = [...new Set(items.map((item) => cookingLabels[item.cooking]).filter(Boolean))];
+  const oilText = oilLevel === "low" ? "油脂较少" : oilLevel === "medium" ? "油脂/汤汁中等" : oilLevel === "high" ? "油脂/酱汁偏多" : "油脂不确定";
+  return `${labels.join("、") || "家常做法"}；${oilText}`;
+}
+
+function normalizeStructuredMeal(parsed, mealItems, rules, sample) {
+  const observations = toTextArray(parsed.observations);
+  const swaps = toTextArray(parsed.swaps);
+  const mealOrder = toTextArray(parsed.meal_order);
+  const title = cleanText(parsed.title) || "餐盘结构分析";
+  const summary = cleanText(parsed.summary) || buildMealSummary(rules) || sample.summary;
+  const boundary =
+    cleanText(parsed.boundary) ||
+    "餐盘分析基于图片估计，用于饮食结构和行为建议，不替代医生或营养师的个体化方案。多人共享餐桌需按实际摄入量重新确认。";
+
+  return {
+    title,
+    summary,
+    risk_level: rules.carbRisk === "偏高" ? "orange" : rules.carbRisk === "中" ? "yellow" : "green",
+    confidence: "high",
+    result: {
+      plate: rules.plate,
+      carbRisk: rules.carbRisk,
+      observations: observations.length ? observations : [...rules.strengths, ...rules.watch],
+      swaps: swaps.length ? swaps : fallbackMealSwaps(rules),
+      meal_order: mealOrder.length ? mealOrder : ["先吃青菜和鸡肉/鸡蛋，再吃主食；番茄蛋汤汁少拌饭。"],
+      detected_items: mealItems,
+      meal_rules: rules,
+      medical_boundary: boundary,
+      ai_source: "structured_meal_pipeline",
+    },
+  };
+}
+
+function buildMealSummary(rules) {
+  return `这餐蔬菜和蛋白质都比较充足，主食风险为${rules.carbRisk}；建议按实际摄入量确认米饭份量，并优先采用蔬菜、蛋白质、主食的进餐顺序。`;
+}
+
+function fallbackMealSwaps(rules) {
+  const swaps = ["主食按小半碗到一拳起步，根据饱腹感和餐后状态调整。", "饭后约 10-20 分钟轻松步行，观察餐后反应。"];
+  if (rules.structure_scores.oil_sauce === "medium" || rules.structure_scores.oil_sauce === "high") {
+    swaps.unshift("番茄蛋和炒菜汤汁少拌饭，减少额外油脂和汤汁带来的波动。");
+  }
+  if (rules.structure_scores.shared_table) {
+    swaps.unshift("这是共享餐桌估计，记录时请按自己实际吃掉的份量调整。");
+  }
+  return swaps;
 }
 
 function buildReportFields(rows, rules) {
