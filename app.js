@@ -518,12 +518,12 @@ function renderAnalysis(analysis) {
     return `
       <div class="analysis-card report-analysis stack">
         <div class="panel-header"><h3>${analysis.title}</h3><span class="risk-pill">${sourceLabel}</span></div>
-        <p class="muted">${analysis.summary}</p>
-        ${result.key_findings?.length ? `<ul class="report-finding-list">${result.key_findings.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}
+        <p class="muted">${highlightReportText(analysis.summary)}</p>
+        ${result.key_findings?.length ? `<ul class="report-finding-list">${result.key_findings.map((item) => `<li class="${reportTextTone(item)}">${highlightReportText(item)}</li>`).join("")}</ul>` : ""}
         ${renderReportStandardTable(result.standard_comparison || [])}
         ${renderReportCurveTable(result.curve_rows || [])}
         ${renderReportDerived(result.derived_indicators || [])}
-        ${result.interpretation ? `<section class="report-section"><h4>专业解读</h4><p class="helper">${escapeHtml(result.interpretation)}</p></section>` : ""}
+        ${result.interpretation ? `<section class="report-section"><h4>专业解读</h4><p class="helper">${highlightReportText(result.interpretation)}</p></section>` : ""}
         ${renderReportAdvice(result.professional_advice || result.action_suggestions || [], "专业建议")}
         ${renderReportAdvice(result.doctor_questions || [], "就诊时可问")}
         ${renderRawFields(result.fields || [])}
@@ -561,7 +561,7 @@ function renderLabelAnalysis(analysis, sourceLabel) {
         </div>
         <strong>${escapeHtml(advice.label)}</strong>
       </div>
-      <p class="label-summary">${escapeHtml(analysis.summary)}</p>
+      <p class="label-summary">${highlightLabelText(analysis.summary)}</p>
       ${renderLabelTrafficTable(result.traffic_lights || [])}
       ${renderLabelIngredientTable(result.ingredients || [], result.nutrition || {})}
       <div class="label-signal-grid">
@@ -593,9 +593,9 @@ function renderLabelTrafficTable(items) {
           <tbody>
             ${items.map((item) => `
               <tr>
-                <td><strong>${escapeHtml(item.label)}</strong></td>
-                <td><span class="label-status ${escapeHtml(item.status || "watch")}">${escapeHtml(labelStatusText(item.status))}</span><small>${escapeHtml(item.value || "")}</small></td>
-                <td>${escapeHtml(item.note || "")}</td>
+                <td><strong>${highlightLabelText(item.label)}</strong></td>
+                <td><span class="label-status ${escapeHtml(item.status || "watch")}">${escapeHtml(labelStatusText(item.status))}</span><small>${highlightLabelText(item.value || "")}</small></td>
+                <td>${highlightLabelText(item.note || "")}</td>
               </tr>
             `).join("")}
           </tbody>
@@ -623,7 +623,7 @@ function renderLabelIngredientTable(ingredients, nutrition) {
         ${topIngredients.length ? `
           <div class="label-mini-panel">
             <span>配料顺序</span>
-            <ol>${topIngredients.map((item) => `<li>${escapeHtml(item.name)}</li>`).join("")}</ol>
+            <ol>${topIngredients.map((item) => `<li>${highlightLabelText(item.name)}</li>`).join("")}</ol>
           </div>
         ` : ""}
         ${nutrientRows.length ? `
@@ -644,7 +644,7 @@ function renderLabelSignalList(title, items, tone) {
   return `
     <section class="label-section label-signal ${tone}">
       <h4>${escapeHtml(title)}</h4>
-      <ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+      <ul>${items.map((item) => `<li class="${labelTextTone(item, tone)}">${highlightLabelText(item)}</li>`).join("")}</ul>
     </section>
   `;
 }
@@ -653,6 +653,27 @@ function labelStatusText(status) {
   if (status === "good") return "友好";
   if (status === "bad") return "少买";
   return "留意";
+}
+
+function highlightLabelText(text) {
+  const safe = escapeHtml(text || "");
+  return safe.replace(
+    /(不建议常买|偶尔少量|需控制|建议替换|需要留意|不能替代|不要长期大量|大量|少买|添加糖|白砂糖|蔗糖|果葡糖浆|麦芽糊精|蜂蜜|浓缩果汁|精制碳水|甜味剂|钠|高钠|饱和脂肪|反式脂肪|不突出|蛋白质\/膳食纤维不突出|控糖功效|医疗效果|功能成分|植物成分|0\s*糖|0\s*碳水|0g|0kJ|低钠|无糖|适合常买)/g,
+    (match) => {
+      const tone = /不建议|需控制|需要留意|不能替代|不要长期大量|大量|少买|添加糖|白砂糖|蔗糖|果葡糖浆|麦芽糊精|蜂蜜|浓缩果汁|精制碳水|甜味剂|高钠|饱和|反式|不突出|控糖功效|医疗效果|功能成分|植物成分/.test(match)
+        ? "danger"
+        : /0\s*糖|0\s*碳水|0g|0kJ|低钠|无糖|适合常买/.test(match)
+          ? "good"
+          : "warn";
+      return `<mark class="label-mark ${tone}">${match}</mark>`;
+    },
+  );
+}
+
+function labelTextTone(text, fallback = "neutral") {
+  if (/不建议|需控制|需要留意|不能替代|大量|添加糖|精制|甜味剂|钠|饱和|反式|不突出|控糖功效|医疗效果|功能成分/.test(text || "")) return "danger";
+  if (/0\s*糖|0\s*碳水|无糖|低钠|适合|友好|替代含糖/.test(text || "")) return "good";
+  return fallback;
 }
 
 function renderMealAnalysis(analysis, sourceLabel) {
@@ -944,6 +965,27 @@ function highlightMealText(text) {
   );
 }
 
+function highlightReportText(text) {
+  const safe = escapeHtml(text || "");
+  return safe.replace(
+    /(糖前期|糖尿病阈值|异常|偏高|升高|高于|需关注|观察偏高|回落偏慢|未完全回到|风险|高风险|餐后早期波动|餐后波动|3h|3小时|HOMA-IR|胰岛素抵抗|复查|HbA1c|OGTT 2h|OGTT 1h|正常|未达|<\s*5\.7|<\s*7\.8|0 糖|低钠)/g,
+    (match) => {
+      const tone = /糖前期|糖尿病阈值|异常|偏高|升高|高于|需关注|观察偏高|回落偏慢|未完全回到|风险|高风险|餐后早期波动|餐后波动|3h|3小时|HOMA-IR|胰岛素抵抗|复查/.test(match)
+        ? "danger"
+        : /正常|未达|<\s*5\.7|<\s*7\.8|0 糖|低钠/.test(match)
+          ? "good"
+          : "warn";
+      return `<mark class="report-mark ${tone}">${match}</mark>`;
+    },
+  );
+}
+
+function reportTextTone(text) {
+  if (/糖前期|糖尿病阈值|异常|偏高|升高|高于|需关注|观察偏高|回落偏慢|未完全回到|风险|高风险|餐后早期波动|胰岛素抵抗|复查/.test(text || "")) return "danger";
+  if (/正常|未达|较稳|友好|0 糖|低钠/.test(text || "")) return "good";
+  return "warn";
+}
+
 function renderReportStandardTable(rows) {
   if (!rows.length) return "";
   return `
@@ -957,10 +999,10 @@ function renderReportStandardTable(rows) {
               .map(
                 (row) => `
                   <tr>
-                    <td>${escapeHtml(row.indicator)}</td>
-                    <td><strong>${escapeHtml(row.value)}</strong>${row.lab_reference ? `<small>实验室 ${escapeHtml(row.lab_reference)}</small>` : ""}</td>
-                    <td>${escapeHtml(row.standard)}<small>${escapeHtml(row.note || "")}</small></td>
-                    <td><span class="table-pill">${escapeHtml(row.judgement)}</span></td>
+                    <td>${highlightReportText(row.indicator)}</td>
+                    <td><strong>${highlightReportText(row.value)}</strong>${row.lab_reference ? `<small>实验室 ${highlightReportText(row.lab_reference)}</small>` : ""}</td>
+                    <td>${highlightReportText(row.standard)}<small>${highlightReportText(row.note || "")}</small></td>
+                    <td><span class="table-pill ${reportTextTone(row.judgement)}">${highlightReportText(row.judgement)}</span></td>
                   </tr>
                 `,
               )
@@ -986,9 +1028,9 @@ function renderReportCurveTable(rows) {
                 (row) => `
                   <tr>
                     <td>${escapeHtml(row.time)}</td>
-                    <td>${escapeHtml(row.glucose || "-")}</td>
-                    <td>${escapeHtml(row.insulin || "-")}<small>${escapeHtml(row.insulin_ratio || "")}</small></td>
-                    <td>${escapeHtml(row.c_peptide || "-")}<small>${escapeHtml(row.c_peptide_ratio || "")}</small></td>
+                    <td>${highlightReportText(row.glucose || "-")}</td>
+                    <td>${highlightReportText(row.insulin || "-")}<small>${highlightReportText(row.insulin_ratio || "")}</small></td>
+                    <td>${highlightReportText(row.c_peptide || "-")}<small>${highlightReportText(row.c_peptide_ratio || "")}</small></td>
                   </tr>
                 `,
               )
@@ -1006,7 +1048,7 @@ function renderReportDerived(items) {
     <section class="report-section">
       <h4>进一步参考指标</h4>
       <div class="mini-metric-grid report-derived-grid">
-        ${items.map((item) => `<div><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.value)}</strong><small>${escapeHtml(item.note)}</small></div>`).join("")}
+        ${items.map((item) => `<div class="${reportTextTone(`${item.label} ${item.value} ${item.note}`)}"><span>${highlightReportText(item.label)}</span><strong>${highlightReportText(item.value)}</strong><small>${highlightReportText(item.note)}</small></div>`).join("")}
       </div>
     </section>
   `;
@@ -1017,7 +1059,7 @@ function renderReportAdvice(items, title) {
   return `
     <section class="report-section">
       <h4>${escapeHtml(title)}</h4>
-      <ul class="content-list">${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+      <ul class="content-list report-advice-list">${items.map((item) => `<li class="${reportTextTone(item)}">${highlightReportText(item)}</li>`).join("")}</ul>
     </section>
   `;
 }

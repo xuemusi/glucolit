@@ -1007,11 +1007,25 @@ button {
   margin: 0;
 }
 
-.label-mark {
+.label-mark,
+.report-mark {
   border-radius: 7px;
-  background: rgba(255, 240, 212, 0.92);
-  color: #8b4f08;
   padding: 0 3px;
+  background: rgba(255, 240, 212, 0.9);
+  color: #8b4f08;
+  font-weight: 900;
+}
+
+.label-mark.danger,
+.report-mark.danger {
+  background: rgba(255, 240, 233, 0.95);
+  color: #b42318;
+}
+
+.label-mark.good,
+.report-mark.good {
+  background: rgba(231, 245, 234, 0.92);
+  color: var(--teal-strong);
 }
 
 .meal-section {
@@ -1432,8 +1446,25 @@ button {
   border-left: 5px solid var(--amber);
 }
 
+.label-signal.danger {
+  border-left: 5px solid #c2410c;
+  background: linear-gradient(90deg, rgba(255, 240, 233, 0.72), rgba(255, 253, 247, 0.94));
+}
+
 .label-signal.neutral {
   border-left: 5px solid var(--sage);
+}
+
+.label-signal li.danger,
+.report-advice-list li.danger {
+  border-color: rgba(223, 122, 85, 0.42);
+  background: linear-gradient(90deg, rgba(255, 240, 233, 0.72), rgba(255, 253, 247, 0.94));
+}
+
+.label-signal li.good,
+.report-advice-list li.good {
+  border-color: rgba(116, 197, 154, 0.42);
+  background: rgba(231, 245, 234, 0.68);
 }
 
 .report-section {
@@ -1486,6 +1517,21 @@ button {
   border-radius: 999px;
   background: var(--teal);
   box-shadow: 0 0 0 4px rgba(116, 197, 154, 0.16);
+}
+
+.report-finding-list li.danger {
+  border-color: rgba(223, 122, 85, 0.42);
+  background: linear-gradient(90deg, rgba(255, 240, 233, 0.72), rgba(255, 253, 247, 0.94));
+}
+
+.report-finding-list li.danger::before {
+  background: #c2410c;
+  box-shadow: 0 0 0 4px rgba(223, 122, 85, 0.18);
+}
+
+.report-finding-list li.good {
+  border-color: rgba(116, 197, 154, 0.42);
+  background: rgba(231, 245, 234, 0.68);
 }
 
 .report-table-wrap {
@@ -1557,6 +1603,29 @@ button {
   white-space: nowrap;
   font-size: 0.72rem;
   font-weight: 800;
+}
+
+.table-pill.danger {
+  border-color: rgba(223, 122, 85, 0.42);
+  background: var(--coral-soft);
+  color: #a1371b;
+}
+
+.table-pill.warn {
+  border-color: rgba(212, 139, 42, 0.38);
+  background: var(--amber-soft);
+  color: #8b4f08;
+}
+
+.table-pill.good {
+  border-color: rgba(116, 197, 154, 0.42);
+  background: var(--mint-soft);
+  color: var(--teal-strong);
+}
+
+.report-derived-grid div.danger {
+  border-color: rgba(223, 122, 85, 0.42);
+  background: linear-gradient(180deg, rgba(255, 240, 233, 0.78), rgba(255, 253, 247, 0.94));
 }
 
 .report-derived-grid div {
