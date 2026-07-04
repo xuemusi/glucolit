@@ -20,6 +20,7 @@ const state = {
   selectedContent: null,
   devicePanelOpen: false,
   connectedDevices: JSON.parse(localStorage.getItem("glucolit:devices") || "{}"),
+  syncingDevices: {},
 };
 
 function createToolState() {
@@ -362,50 +363,156 @@ function renderHome() {
 function renderHardwareDock() {
   const connectedCount = hardwareDevices.filter((device) => state.connectedDevices[device.id]).length;
   const panelClass = state.devicePanelOpen ? " open" : "";
+  const isAnySyncing = hardwareDevices.some((d) => state.syncingDevices?.[d.id]);
+  
   return `
     <div class="device-float${panelClass}" aria-label="硬件设备接入">
+      <!-- Hover 胶囊气泡提示 -->
+      <div class="device-tooltip">
+        <span class="device-tooltip-icon">⌚️</span>
+        <span class="device-tooltip-text">可接入智能手表评估数据</span>
+      </div>
+
+      <!-- 悬浮圆形按钮 (Watch Orb) -->
       <button class="device-orb" type="button" data-device-panel-toggle aria-expanded="${state.devicePanelOpen ? "true" : "false"}">
-        <span class="device-orb-ring"></span>
-        <span class="device-orb-screen">
-          <strong>${connectedCount || "接入"}</strong>
-          <small>${connectedCount ? "设备在线" : "设备"}</small>
-        </span>
-        <span class="device-orb-wave"></span>
+        <!-- 呼吸雷达外圈 -->
+        <span class="device-orb-pulse-ring"></span>
+        <span class="device-orb-pulse-ring2"></span>
+        
+        <!-- 表盘内容 -->
+        <div class="device-orb-watch">
+          <!-- 环形同步进度条 -->
+          <svg class="device-orb-svg" viewBox="0 0 40 40">
+            <circle class="orb-track" cx="20" cy="20" r="16"></circle>
+            <circle class="orb-progress" cx="20" cy="20" r="16" style="stroke-dasharray: 100; stroke-dashoffset: ${100 - (connectedCount / 3) * 100}"></circle>
+          </svg>
+          <div class="device-orb-icon-inner">
+            <!-- 手表矢量图 (Apple Watch 风格) -->
+            <svg class="watch-icon-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M9 5V2.5C9 2.22 9.22 2 9.5 2h5c0.28 0 0.5 0.22 0.5 0.5V5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+              <path d="M9 19v2.5c0 0.28 0.22 0.5 0.5 0.5h5c0.28 0 0.5-0.22 0.5-0.5V19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+              <rect x="6.5" y="5" width="11" height="14" rx="3.2" fill="rgba(13, 108, 97, 0.08)" stroke="currentColor" stroke-width="1.8" />
+              <rect x="17.5" y="7.5" width="1.2" height="3" rx="0.6" fill="currentColor" />
+              <rect x="17.5" y="12" width="1" height="3.5" rx="0.5" fill="currentColor" />
+              <circle cx="12" cy="12" r="3.5" stroke="var(--mint)" stroke-width="1.2" stroke-dasharray="16 6" stroke-linecap="round" />
+              <circle cx="12" cy="12" r="1.8" stroke="currentColor" stroke-width="1" stroke-dasharray="8 4" opacity="0.6" />
+            </svg>
+          </div>
+          
+          <!-- 指示灯 / 连接数 Badge -->
+          <span class="device-orb-badge ${connectedCount > 0 ? "has-connected" : ""}">
+            ${connectedCount > 0 ? connectedCount : "+"}
+          </span>
+        </div>
       </button>
+
+      <!-- 展开的设备接入面板 (Device Panel) -->
       <div class="device-panel" role="region" aria-label="设备接入面板">
         <div class="device-panel-head">
           <div>
-            <p class="eyebrow">设备同步</p>
-            <h2>把可穿戴数据接进今日判断</h2>
+            <p class="eyebrow">实时健康数据同步</p>
+            <h2>将可穿戴设备接进今日健康评估</h2>
           </div>
           <button class="device-close" type="button" data-device-panel-toggle aria-label="收起设备接入面板">×</button>
         </div>
+        
+        <!-- 同步拟真动画区 (Apple Watch 卡片 + 脉冲心电 + 粒子束) -->
         <div class="device-sync-stage" aria-label="设备同步动画">
-          <div class="watch-face">
-            <span></span>
-            <strong>WATCH</strong>
-            <small>72 bpm</small>
+          <div class="watch-face-card ${connectedCount > 0 ? "active" : ""}">
+            <div class="watch-screen">
+              <div class="watch-screen-status">
+                <span class="watch-screen-dot ${connectedCount > 0 ? "online" : ""}"></span>
+                <span>WATCH</span>
+              </div>
+              <div class="watch-screen-content">
+                <!-- 动态心电脉冲 -->
+                <svg class="pulse-wave-svg" viewBox="0 0 60 20">
+                  <path d="M0,10 L15,10 L18,3 L22,17 L25,7 L28,12 L31,10 L60,10" fill="none" stroke="currentColor" stroke-width="1.5"></path>
+                </svg>
+                <div class="watch-screen-data">
+                  <strong>72</strong>
+                  <small>bpm</small>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="sync-beam">
-            <i></i><i></i><i></i>
+          
+          <!-- 粒子能量光束 -->
+          <div class="sync-beam-new ${isAnySyncing ? "syncing" : connectedCount > 0 ? "active" : ""}">
+            <div class="beam-glow"></div>
+            <div class="particles">
+              <i></i><i></i><i></i>
+            </div>
           </div>
-          <div class="glucose-node">
+          
+          <!-- 血糖估计评估节点 -->
+          <div class="glucose-node-new ${connectedCount > 0 ? "active" : ""}">
             <strong>6.8</strong>
             <span>餐后估计</span>
           </div>
         </div>
+        
+        <!-- 优化后的设备选项列表 -->
         <div class="device-list">
           ${hardwareDevices
             .map((device) => {
               const connected = Boolean(state.connectedDevices[device.id]);
+              const syncing = Boolean(state.syncingDevices?.[device.id]);
+              
+              let actionText = device.status;
+              let btnClass = device.accent;
+              if (syncing) {
+                actionText = "同步数据中...";
+                btnClass += " syncing";
+              } else if (connected) {
+                actionText = "已接入今日";
+                btnClass += " connected";
+              }
+              
+              // 针对不同设备生成精细 SVG
+              let deviceIconSvg = "";
+              if (device.id === "apple_watch") {
+                deviceIconSvg = `
+                  <svg class="row-icon-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M9 5V2.5C9 2.22 9.22 2 9.5 2h5c0.28 0 0.5 0.22 0.5 0.5V5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                    <path d="M9 19v2.5c0 0.28 0.22 0.5 0.5 0.5h5c0.28 0 0.5-0.22 0.5-0.5V19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                    <rect x="6.5" y="5" width="11" height="14" rx="3.2" stroke="currentColor" stroke-width="1.8" />
+                    <rect x="17.5" y="7.5" width="1.2" height="3" rx="0.6" fill="currentColor" />
+                    <rect x="17.5" y="12" width="1" height="3.5" rx="0.5" fill="currentColor" />
+                    <circle cx="12" cy="12" r="2.8" stroke="currentColor" stroke-width="1.2" opacity="0.75" />
+                  </svg>
+                `;
+              } else if (device.id === "cgm") {
+                deviceIconSvg = `
+                  <svg class="row-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M12 7v10M7 12h10" stroke-dasharray="2 2"></path>
+                    <circle cx="12" cy="12" r="3.5" fill="currentColor" fill-opacity="0.2"></circle>
+                  </svg>
+                `;
+              } else {
+                deviceIconSvg = `
+                  <svg class="row-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="4"></rect>
+                    <path d="M3 9h18M9 21V9"></path>
+                    <circle cx="15" cy="15" r="1.5"></circle>
+                  </svg>
+                `;
+              }
+              
               return `
-                <button class="device-row ${device.accent}${connected ? " connected" : ""}" type="button" data-device-connect="${device.id}">
-                  <span class="device-icon" aria-hidden="true"></span>
-                  <span>
+                <button class="device-row-new ${btnClass}" type="button" data-device-connect="${device.id}" ${syncing ? "disabled" : ""}>
+                  <span class="device-icon-wrapper" aria-hidden="true">
+                    ${deviceIconSvg}
+                  </span>
+                  <span class="device-row-info">
                     <strong>${device.name}</strong>
                     <small>${device.signal}</small>
                   </span>
-                  <em>${connected ? "已接入" : device.status}</em>
+                  <div class="device-row-status">
+                    ${syncing ? '<span class="device-spinner"></span>' : ""}
+                    <em>${actionText}</em>
+                  </div>
                 </button>
               `;
             })
@@ -1784,13 +1891,40 @@ function bindViewEvents() {
   document.querySelectorAll("[data-device-connect]").forEach((button) => {
     button.addEventListener("click", () => {
       const deviceId = button.dataset.deviceConnect;
-      state.connectedDevices = {
-        ...state.connectedDevices,
-        [deviceId]: !state.connectedDevices[deviceId],
-      };
-      localStorage.setItem("glucolit:devices", JSON.stringify(state.connectedDevices));
-      state.devicePanelOpen = true;
-      render();
+      const isConnected = Boolean(state.connectedDevices[deviceId]);
+      
+      if (state.syncingDevices && state.syncingDevices[deviceId]) {
+        return; // 同步中，防重复点击
+      }
+      
+      if (!isConnected) {
+        if (!state.syncingDevices) {
+          state.syncingDevices = {};
+        }
+        state.syncingDevices[deviceId] = true;
+        state.devicePanelOpen = true;
+        render();
+        
+        setTimeout(() => {
+          if (state.syncingDevices && state.syncingDevices[deviceId]) {
+            delete state.syncingDevices[deviceId];
+            state.connectedDevices = {
+              ...state.connectedDevices,
+              [deviceId]: true,
+            };
+            localStorage.setItem("glucolit:devices", JSON.stringify(state.connectedDevices));
+            render();
+          }
+        }, 1200);
+      } else {
+        state.connectedDevices = {
+          ...state.connectedDevices,
+          [deviceId]: false,
+        };
+        localStorage.setItem("glucolit:devices", JSON.stringify(state.connectedDevices));
+        state.devicePanelOpen = true;
+        render();
+      }
     });
   });
   document.querySelectorAll("[data-photo-trigger]").forEach((button) => {

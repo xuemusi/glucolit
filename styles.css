@@ -394,95 +394,201 @@ button {
 
 .device-orb,
 .device-panel,
-.device-row,
+.device-row-new,
 .device-close {
   pointer-events: auto;
 }
 
-.device-orb {
-  position: relative;
-  width: 78px;
-  height: 78px;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(116, 197, 154, 0.48);
-  border-radius: 28px;
-  background:
-    radial-gradient(circle at 28% 22%, rgba(255, 255, 255, 0.92), transparent 24%),
-    linear-gradient(145deg, #13382f, #0b5b52 56%, #5fbf93);
-  color: white;
-  box-shadow: 0 18px 42px rgba(13, 108, 97, 0.32);
+/* Hover 胶囊气泡提示 */
+.device-tooltip {
+  position: absolute;
+  right: 74px;
+  top: 13px;
+  white-space: nowrap;
+  background: var(--teal-strong);
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  box-shadow: 0 8px 20px rgba(13, 108, 97, 0.16);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0;
+  transform: translateX(10px) scale(0.95);
+  pointer-events: none;
+  transition: opacity 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.2), transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.2);
+  z-index: 10;
+  border: 1px solid rgba(116, 197, 154, 0.25);
+  animation: tooltip-show-once 5s ease forwards;
 }
 
-.device-orb-ring,
-.device-orb-wave {
+.device-float:hover .device-tooltip {
+  animation: none; /* 覆盖初次载入动画 */
+  opacity: 1;
+  transform: translateX(0) scale(1);
+  pointer-events: auto;
+}
+
+@keyframes tooltip-show-once {
+  0%, 15% { opacity: 0; transform: translateX(10px) scale(0.95); }
+  20%, 80% { opacity: 1; transform: translateX(0) scale(1); }
+  85%, 100% { opacity: 0; transform: translateX(10px) scale(0.95); }
+}
+
+.device-tooltip-icon {
+  font-size: 0.85rem;
+}
+
+/* 悬浮圆形按钮 (Watch Orb) */
+.device-orb {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(13, 108, 97, 0.12);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 8px 24px rgba(13, 108, 97, 0.15), 0 2px 6px rgba(0, 0, 0, 0.06);
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
+  padding: 0;
+}
+
+.device-orb:hover {
+  transform: scale(1.06) translateY(-2px);
+  box-shadow: 0 12px 28px rgba(13, 108, 97, 0.22);
+}
+
+.device-orb:active {
+  transform: scale(0.96);
+}
+
+/* 雷达呼吸外圈 */
+.device-orb-pulse-ring,
+.device-orb-pulse-ring2 {
   position: absolute;
-  inset: 9px;
-  border-radius: 24px;
+  inset: -1px;
+  border-radius: 50%;
+  pointer-events: none;
+  border: 1px solid rgba(116, 197, 154, 0.45);
+}
+
+.device-orb-pulse-ring {
+  animation: pulse-radar 3s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+.device-orb-pulse-ring2 {
+  animation: pulse-radar 3s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+  animation-delay: 1.5s;
+}
+
+@keyframes pulse-radar {
+  0% { transform: scale(1); opacity: 0.8; }
+  80%, 100% { transform: scale(1.4); opacity: 0; }
+}
+
+/* 表盘内圈进度与手表 */
+.device-orb-watch {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+
+.device-orb-svg {
+  position: absolute;
+  width: 44px;
+  height: 44px;
   pointer-events: none;
 }
 
-.device-orb-ring {
-  border: 1px solid rgba(255, 255, 255, 0.38);
-  box-shadow: inset 0 0 24px rgba(116, 197, 154, 0.34);
+.orb-track {
+  fill: none;
+  stroke: rgba(13, 108, 97, 0.06);
+  stroke-width: 2.5;
 }
 
-.device-orb-wave {
-  inset: -9px;
-  border: 1px solid rgba(116, 197, 154, 0.34);
-  opacity: 0.7;
+.orb-progress {
+  fill: none;
+  stroke: var(--mint);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+  transition: stroke-dashoffset 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.device-orb-screen {
-  position: relative;
-  width: 46px;
-  height: 54px;
+.device-orb-icon-inner {
+  color: var(--teal);
   display: grid;
   place-items: center;
-  align-content: center;
-  border: 2px solid rgba(255, 255, 255, 0.76);
-  border-radius: 15px;
-  background: rgba(5, 42, 38, 0.5);
-  box-shadow: inset 0 -10px 20px rgba(116, 197, 154, 0.16);
+  transition: transform 0.3s ease;
 }
 
-.device-orb-screen strong,
-.device-orb-screen small {
+.device-orb:hover .device-orb-icon-inner {
+  transform: rotate(10deg);
+}
+
+.watch-icon-svg {
+  width: 22px;
+  height: 22px;
+  opacity: 0.95;
   display: block;
-  line-height: 1;
 }
 
-.device-orb-screen strong {
-  font-size: 0.9rem;
+/* 指示灯/连接数角标 */
+.device-orb-badge {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--line-strong);
+  color: var(--ink-soft);
+  font-size: 0.58rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  border: 1.5px solid #fff;
+  transition: all 0.3s ease;
 }
 
-.device-orb-screen small {
-  margin-top: 4px;
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 0.56rem;
-  font-weight: 800;
+.device-orb-badge.has-connected {
+  background: var(--mint);
+  color: #fff;
+  box-shadow: 0 0 8px rgba(116, 197, 154, 0.8);
 }
 
+/* 展开的设备面板 */
 .device-panel {
   position: absolute;
   right: 0;
-  bottom: 88px;
+  bottom: 78px;
   width: min(374px, calc(100vw - 28px));
   max-height: calc(100vh - 178px);
   overflow: auto;
-  padding: 15px;
+  padding: 18px;
   border: 1px solid rgba(116, 197, 154, 0.38);
   border-radius: 24px;
-  background:
-    linear-gradient(145deg, rgba(10, 57, 49, 0.97), rgba(12, 89, 79, 0.95) 54%, rgba(65, 133, 98, 0.95)),
-    var(--teal-strong);
+  background: linear-gradient(155deg, rgba(8, 48, 43, 0.98) 0%, rgba(13, 89, 79, 0.97) 70%, rgba(27, 75, 67, 0.98) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   color: white;
   box-shadow: 0 26px 70px rgba(7, 54, 48, 0.4);
   opacity: 0;
   transform: translateY(12px) scale(0.96);
   visibility: hidden;
   transform-origin: right bottom;
-  transition: opacity 220ms ease, transform 220ms ease, visibility 220ms ease;
+  transition: opacity 250ms cubic-bezier(0.4, 0, 0.2, 1), transform 250ms cubic-bezier(0.4, 0, 0.2, 1), visibility 250ms ease;
+  z-index: 100;
 }
 
 .device-float.open .device-panel {
@@ -496,211 +602,422 @@ button {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background:
-    linear-gradient(90deg, transparent 0 31%, rgba(255, 255, 255, 0.08) 31% 32%, transparent 32% 63%, rgba(255, 255, 255, 0.06) 63% 64%, transparent 64%),
-    linear-gradient(180deg, transparent 0 42%, rgba(116, 197, 154, 0.13) 42% 43%, transparent 43%);
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 16px 16px;
   pointer-events: none;
+  z-index: 0;
 }
 
 .device-panel-head {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 42px;
+  grid-template-columns: minmax(0, 1fr) 36px;
   gap: 12px;
   align-items: start;
+  z-index: 1;
 }
 
 .device-panel .eyebrow {
   color: #9ce3b7;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
 
 .device-panel h2 {
-  margin: 3px 0 0;
-  font-size: 1.08rem;
-  line-height: 1.32;
+  margin: 4px 0 0;
+  font-size: 1.05rem;
+  line-height: 1.35;
+  font-weight: 600;
 }
 
 .device-close {
-  width: 42px;
-  height: 42px;
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  border-radius: 15px;
-  background: rgba(255, 255, 255, 0.12);
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
   color: white;
-  font-size: 1.28rem;
+  font-size: 1.1rem;
   line-height: 1;
+  display: grid;
+  place-items: center;
+  transition: all 0.2s ease;
 }
 
+.device-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: rotate(90deg);
+}
+
+/* 同步数据拟真动画区 */
 .device-sync-stage {
   position: relative;
   display: grid;
-  grid-template-columns: 84px minmax(64px, 1fr) 88px;
+  grid-template-columns: 78px minmax(60px, 1fr) 78px;
   gap: 8px;
   align-items: center;
-  margin: 16px 0;
-  padding: 13px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  margin: 18px 0;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(5, 40, 36, 0.35);
+  z-index: 1;
 }
 
-.watch-face {
-  height: 88px;
-  display: grid;
-  place-items: center;
-  align-content: center;
-  border: 3px solid rgba(255, 255, 255, 0.78);
-  border-radius: 24px;
-  background: linear-gradient(180deg, rgba(9, 48, 43, 0.9), rgba(13, 108, 97, 0.68));
-  box-shadow: inset 0 -18px 32px rgba(116, 197, 154, 0.18), 0 12px 24px rgba(0, 0, 0, 0.18);
+/* Apple Watch 卡片 */
+.watch-face-card {
+  width: 78px;
+  height: 78px;
+  border-radius: 18px;
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  background: #000;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 2px 6px rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  transition: border-color 0.4s ease, box-shadow 0.4s ease;
 }
 
-.watch-face span {
-  width: 28px;
-  height: 18px;
-  border: 2px solid #9ce3b7;
-  border-top: 0;
-  border-radius: 0 0 18px 18px;
+.watch-face-card.active {
+  border-color: rgba(116, 197, 154, 0.55);
+  box-shadow: 0 8px 20px rgba(116, 197, 154, 0.15), 0 0 12px rgba(116, 197, 154, 0.25);
 }
 
-.watch-face strong,
-.watch-face small,
-.glucose-node strong,
-.glucose-node span {
-  display: block;
+.watch-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
-.watch-face strong {
-  margin-top: 8px;
-  font-size: 0.58rem;
-  letter-spacing: 0;
+.watch-screen-status {
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 4px 6px 0;
+  color: rgba(255, 255, 255, 0.45);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: monospace;
 }
 
-.watch-face small {
-  margin-top: 3px;
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 0.62rem;
+.watch-screen-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  transition: background-color 0.3s;
+}
+
+.watch-screen-dot.online {
+  background: var(--mint);
+  animation: dot-blink 1.5s infinite;
+}
+
+@keyframes dot-blink {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+.watch-screen-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 6px 4px;
+}
+
+.pulse-wave-svg {
+  width: 100%;
+  height: 14px;
+  color: rgba(255, 255, 255, 0.15);
+  transition: color 0.4s ease;
+}
+
+.watch-face-card.active .pulse-wave-svg {
+  color: var(--mint);
+}
+
+.watch-face-card.active .pulse-wave-svg path {
+  stroke-dasharray: 60;
+  stroke-dashoffset: 60;
+  animation: pulse-draw 2s linear infinite;
+}
+
+@keyframes pulse-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+.watch-screen-data {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  margin-top: 2px;
+  color: #fff;
+  opacity: 0.5;
+  transition: opacity 0.4s ease;
+}
+
+.watch-face-card.active .watch-screen-data {
+  opacity: 1;
+}
+
+.watch-screen-data strong {
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.watch-screen-data small {
+  font-size: 0.52rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin-left: 2px;
   font-weight: 800;
 }
 
-.sync-beam {
-  display: grid;
-  gap: 8px;
+/* 粒子同步能量光束 */
+.sync-beam-new {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
-.sync-beam i {
+.beam-glow {
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(116, 197, 154, 0.15), transparent);
+  transition: background 0.4s;
+}
+
+.sync-beam-new.active .beam-glow {
+  background: linear-gradient(90deg, transparent, rgba(116, 197, 154, 0.4), transparent);
+}
+
+.sync-beam-new .particles {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  justify-content: center;
+  z-index: 1;
+}
+
+.sync-beam-new .particles i {
+  width: 4px;
   height: 4px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, transparent, #9ce3b7, transparent);
-  box-shadow: 0 0 18px rgba(156, 227, 183, 0.7);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  transition: background-color 0.4s, box-shadow 0.4s, transform 0.4s;
 }
 
-.glucose-node {
-  min-height: 78px;
-  display: grid;
-  place-items: center;
-  align-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 22px;
-  background: rgba(255, 253, 247, 0.92);
+.sync-beam-new.active .particles i {
+  background: rgba(116, 197, 154, 0.7);
+  box-shadow: 0 0 6px rgba(116, 197, 154, 0.6);
+}
+
+.sync-beam-new.syncing .particles i {
+  animation: sync-wave-pulse 1s infinite alternate;
+}
+
+.sync-beam-new.syncing .particles i:nth-child(1) { animation-delay: 0s; }
+.sync-beam-new.syncing .particles i:nth-child(2) { animation-delay: 0.2s; }
+.sync-beam-new.syncing .particles i:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes sync-wave-pulse {
+  0% { transform: scale(1); background: rgba(255, 255, 255, 0.12); }
+  100% { transform: scale(1.6); background: var(--mint); box-shadow: 0 0 8px var(--mint); }
+}
+
+/* 血糖估计评估节点 */
+.glucose-node-new {
+  width: 78px;
+  height: 78px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.4s, border-color 0.4s, box-shadow 0.4s, color 0.4s;
+}
+
+.glucose-node-new strong {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.3);
+  transition: color 0.4s;
+}
+
+.glucose-node-new span {
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.3);
+  margin-top: 4px;
+  transition: color 0.4s;
+}
+
+.glucose-node-new.active {
+  background: #fffdf7;
+  border-color: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.glucose-node-new.active strong {
   color: var(--teal-strong);
 }
 
-.glucose-node strong {
-  font-size: 1.45rem;
-  line-height: 1;
-}
-
-.glucose-node span {
-  margin-top: 6px;
+.glucose-node-new.active span {
   color: var(--sage-deep);
-  font-size: 0.66rem;
-  font-weight: 800;
 }
 
+/* 设备选项列表 */
 .device-list {
   display: grid;
-  gap: 9px;
+  gap: 10px;
+  z-index: 1;
 }
 
-.device-row {
-  display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) auto;
-  gap: 10px;
+.device-row-new {
+  display: flex;
   align-items: center;
   width: 100%;
-  min-height: 64px;
-  padding: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.1);
+  min-height: 60px;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
   color: white;
   text-align: left;
-  transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
+  transition: background 220ms, border-color 220ms, transform 220ms;
 }
 
-.device-row:hover {
+.device-row-new:hover:not(:disabled) {
   transform: translateY(-1px);
-  border-color: rgba(255, 255, 255, 0.32);
-  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.1);
 }
 
-.device-row.connected {
-  border-color: rgba(156, 227, 183, 0.64);
-  background: rgba(156, 227, 183, 0.16);
+.device-row-new:disabled {
+  opacity: 0.8;
+  cursor: not-allowed;
 }
 
-.device-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 14px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(156, 227, 183, 0.72));
-  box-shadow: inset 0 -8px 14px rgba(13, 108, 97, 0.2);
+.device-icon-wrapper {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  display: grid;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.8);
+  margin-right: 12px;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
 }
 
-.device-row.amber .device-icon {
-  background: linear-gradient(180deg, rgba(255, 250, 238, 0.96), rgba(255, 196, 111, 0.76));
+.row-icon-svg {
+  width: 18px;
+  height: 18px;
 }
 
-.device-row.teal .device-icon {
-  background: linear-gradient(180deg, rgba(238, 246, 243, 0.96), rgba(92, 184, 170, 0.78));
+.device-row-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
-.device-row strong,
-.device-row small,
-.device-row em {
-  display: block;
-}
-
-.device-row strong {
+.device-row-info strong {
   font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.25;
 }
 
-.device-row small {
-  margin-top: 3px;
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 0.68rem;
+.device-row-info small {
+  margin-top: 2px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.65rem;
   font-weight: 800;
 }
 
-.device-row em {
-  justify-self: end;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+.device-row-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 10px;
+}
+
+.device-row-status em {
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 999px;
-  padding: 5px 8px;
-  color: #d8f8e1;
+  padding: 4px 10px;
   font-size: 0.64rem;
   font-style: normal;
   font-weight: 800;
   white-space: nowrap;
+  transition: all 0.25s ease;
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* 状态修饰类 */
+.device-row-new.connected {
+  border-color: rgba(116, 197, 154, 0.35);
+  background: rgba(116, 197, 154, 0.08);
+}
+
+.device-row-new.connected .device-icon-wrapper {
+  background: var(--mint);
+  color: #084f49;
+  box-shadow: 0 0 8px rgba(116, 197, 154, 0.3);
+}
+
+.device-row-new.connected .device-row-status em {
+  background: rgba(116, 197, 154, 0.15);
+  border-color: rgba(116, 197, 154, 0.3);
+  color: #9ce3b7;
+}
+
+.device-row-new.syncing .device-row-status em {
+  border-color: transparent;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+/* loading spinner */
+.device-spinner {
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin-loading 0.8s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin-loading {
+  to { transform: rotate(360deg); }
 }
 
 .device-note {
   position: relative;
-  margin: 12px 0 0;
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 0.72rem;
-  line-height: 1.5;
+  margin: 14px 0 0;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.65rem;
+  line-height: 1.45;
+  z-index: 1;
 }
 
 .hero-top,
