@@ -22,6 +22,7 @@ const state = {
   devicePanelOpen: false,
   connectedDevices: JSON.parse(localStorage.getItem("glucolit:devices") || "{}"),
   syncingDevices: {},
+  reportActionDraft: null,
 };
 
 function createToolState() {
@@ -725,8 +726,9 @@ function renderAnalysis(analysis) {
         ${renderReportAdvice(result.professional_advice || result.action_suggestions || [], "专业建议")}
         ${renderReportAdvice(result.doctor_questions || [], "就诊时可问")}
         ${renderRawFields(result.fields || [])}
-        <button class="secondary-button" type="button">信息确认无误，生成今日行动</button>
+        <button class="secondary-button" type="button" data-generate-report-action="${analysis.id}" ${reportActionButtonDisabled(analysis) ? "disabled" : ""}>${reportActionButtonLabel(analysis)}</button>
       </div>
+      ${renderReportActionPreview(analysis)}
     `;
   }
   if (analysis.type === "meal") {
@@ -742,6 +744,82 @@ function renderAnalysis(analysis) {
       <ul class="warning-list">${result.reasons.map((item) => `<li>${item}</li>`).join("")}</ul>
       <p class="helper">替换建议：${result.alternatives.join("；")}</p>
       <p class="helper">${result.boundary}</p>
+    </div>
+  `;
+}
+
+function reportActionDraftFor(analysis) {
+  return state.reportActionDraft?.analysisId === analysis.id ? state.reportActionDraft : null;
+}
+
+function reportActionButtonLabel(analysis) {
+  const draft = reportActionDraftFor(analysis);
+  if (draft?.status === "generating") return "正在把报告转成今日行动...";
+  if (draft?.status === "adding") return "正在加入今日行动...";
+  if (draft?.status === "added") return "已加入今日行动";
+  return "信息确认无误，生成今日行动";
+}
+
+function reportActionButtonDisabled(analysis) {
+  const draft = reportActionDraftFor(analysis);
+  return draft?.status === "generating" || draft?.status === "adding" || draft?.status === "added";
+}
+
+function reportActionCandidate() {
+  const existing = state.appState?.actions?.find((action) => action.category === "exercise");
+  return existing || {
+    id: "",
+    category: "exercise",
+    title: "运动",
+    detail: "饭后约 30 分钟开始散步，体力不足时先走 15-20 分钟。",
+    status: "todo",
+    source: "analysis",
+  };
+}
+
+function actionDisplayDetail(action) {
+  if (action?.category === "exercise" && action.source === "analysis") {
+    return "饭后约 30 分钟开始散步，体力不足时先走 15-20 分钟。";
+  }
+  return action?.detail || "";
+}
+
+function renderReportActionPreview(analysis) {
+  const draft = reportActionDraftFor(analysis);
+  if (!draft || !["ready", "adding", "added"].includes(draft.status)) return "";
+
+  const action = reportActionCandidate();
+  const context = getActionContext(action);
+  const added = draft.status === "added";
+  const adding = draft.status === "adding";
+
+  return `
+    <div class="report-action-preview stack">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">${added ? "已加入今日行动" : "行动预览"}</p>
+          <h3>已把报告转成今天的一件事</h3>
+        </div>
+        <span class="risk-pill">来自报告</span>
+      </div>
+      <p class="source-note"><strong>识别依据</strong><span>根据你的 OGTT / 胰岛素释放曲线，今天优先关注餐后血糖峰值管理。</span></p>
+      <div class="action-steps compact">
+        <p><strong>怎么去做</strong><span>${escapeHtml(actionDisplayDetail(action))}</span></p>
+        <p><strong>为什么做</strong><span>${escapeHtml(context.rationale)}</span></p>
+        <p><strong>做不到时</strong><span>${escapeHtml(context.fallback)}</span></p>
+        <p class="guard"><strong>身体红线</strong><span>${escapeHtml(context.guard)}</span></p>
+      </div>
+      ${draft.error ? `<p class="form-error">${escapeHtml(draft.error)}</p>` : ""}
+      <div class="report-action-buttons">
+        ${
+          added
+            ? `<button class="primary-button" type="button" data-go="actions">去行动页打卡</button>`
+            : `
+              <button class="primary-button" type="button" data-add-report-action="${analysis.id}" ${adding ? "disabled" : ""}>${adding ? "正在加入..." : "加入今日行动"}</button>
+              <button class="secondary-button" type="button" data-add-report-action="${analysis.id}" data-next-view="actions" ${adding ? "disabled" : ""}>去行动页打卡</button>
+            `
+        }
+      </div>
     </div>
   `;
 }
@@ -1365,6 +1443,7 @@ function renderActions() {
   const primaryDone = primary?.status === "done";
   const optionalDoneCount = optional.filter((action) => action.status === "done").length;
   const primaryContext = getActionContext(primary);
+  const primaryFromAnalysis = primary?.source === "analysis";
 
   return `
     <section class="stack">
@@ -1380,7 +1459,7 @@ function renderActions() {
               : ""
           }
         </div>
-        <p class="muted">根据你最近的身体信号（${primaryContext.source}），AI 帮你挑出了今天的“头等大事”。先把这件事搞定，其他的都是加分项，不要有压力。</p>
+        <p class="muted">${primaryFromAnalysis ? "根据刚确认的 OGTT / 胰岛素报告信号" : `根据你最近的身体信号（${primaryContext.source}）`}，AI 帮你挑出了今天的“头等大事”。先把这件事搞定，其他的都是加分项，不要有压力。</p>
       </div>
       ${primary ? `<div class="action-section"><p class="eyebrow">核心行动 ${primaryDone ? 1 : 0}/1</p>${renderActionCard(primary, true)}</div>` : ""}
       <div class="action-section">
@@ -1417,9 +1496,9 @@ function renderActionCard(action, isPrimary = false) {
           <span class="tag">${isPrimary ? "核心行动" : action.title}</span>
           ${isPrimary ? `<h3>${action.title}</h3>` : ""}
           <div class="action-steps">
-            <p><strong>建议做法</strong><span>${escapeHtml(action.detail)}</span></p>
-            <p><strong>对你的帮助</strong><span>${escapeHtml(context.rationale)}</span></p>
-            <p><strong>累了？试试这招</strong><span>${escapeHtml(context.fallback)}</span></p>
+            <p><strong>怎么去做</strong><span>${escapeHtml(actionDisplayDetail(action))}</span></p>
+            <p><strong>为什么做</strong><span>${escapeHtml(context.rationale)}</span></p>
+            <p><strong>做不到时</strong><span>${escapeHtml(context.fallback)}</span></p>
             <p class="guard"><strong>身体红线</strong><span>${escapeHtml(context.guard)}</span></p>
           </div>
           ${action.status === "done" ? `<p class="small">${isPrimary ? "太棒了，今天的核心行动已搞定。连续坚持 3 天，我们一起来看身体的奇妙变化。" : "太棒了，加分行动已搞定。"}</p>` : ""}
@@ -2040,6 +2119,42 @@ function bindViewEvents() {
         slot.streamStatus = isTimeout ? "请求超时" : "识别失败";
       } finally {
         slot.loading = false;
+        render();
+      }
+    });
+  });
+  document.querySelectorAll("[data-generate-report-action]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const analysisId = button.dataset.generateReportAction;
+      state.reportActionDraft = { analysisId, status: "generating" };
+      render();
+      window.setTimeout(() => {
+        if (state.reportActionDraft?.analysisId !== analysisId || state.reportActionDraft.status !== "generating") return;
+        state.reportActionDraft = { analysisId, status: "ready" };
+        render();
+      }, 700);
+    });
+  });
+  document.querySelectorAll("[data-add-report-action]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const analysisId = button.dataset.addReportAction;
+      state.reportActionDraft = { analysisId, status: "adding" };
+      render();
+      try {
+        await api("/api/actions/from-analysis", {
+          method: "POST",
+          body: JSON.stringify({ user_id: state.user.id, analysis_id: analysisId }),
+        });
+        await loadAppState();
+        state.reportActionDraft = { analysisId, status: "added" };
+        if (button.dataset.nextView) {
+          setView(button.dataset.nextView);
+          return;
+        }
+        render();
+      } catch (error) {
+        console.error(error);
+        state.reportActionDraft = { analysisId, status: "ready", error: error.message || "加入失败，请稍后重试" };
         render();
       }
     });

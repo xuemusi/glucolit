@@ -1404,6 +1404,61 @@ textarea:focus,
   white-space: normal;
 }
 
+.report-action-preview {
+  position: relative;
+  overflow: hidden;
+  padding: 14px;
+  border: 1px solid rgba(82, 147, 116, 0.36);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(231, 245, 234, 0.92), rgba(255, 253, 247, 0.98) 58%, rgba(220, 234, 243, 0.52)),
+    var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.report-action-preview::before {
+  content: "";
+  position: absolute;
+  right: 10px;
+  top: 4px;
+  width: 82px;
+  height: 96px;
+  opacity: 0.1;
+  background:
+    linear-gradient(88deg, transparent 48%, var(--sage-deep) 48% 51%, transparent 51%),
+    linear-gradient(132deg, transparent 0 44%, var(--sage) 44% 50%, transparent 50%);
+  pointer-events: none;
+  transform: rotate(8deg);
+}
+
+.report-action-preview > * {
+  position: relative;
+  z-index: 1;
+}
+
+.report-action-preview h3 {
+  margin: 2px 0 0;
+  color: var(--ink);
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.report-action-preview .source-note {
+  margin: 2px 0;
+  border-left-color: var(--teal);
+  background: rgba(255, 253, 247, 0.5);
+}
+
+.report-action-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.report-action-buttons .primary-button:only-child {
+  grid-column: 1 / -1;
+}
+
 .meal-analysis {
   gap: 14px;
 }

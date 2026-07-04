@@ -32,7 +32,7 @@ export const defaultActions = [
   {
     category: "exercise",
     title: "运动",
-    detail: "在吃完饭 15 至 30 分钟内，出门散步 15 至 20 分钟，强度以“能说话、不能唱歌”为准。",
+    detail: "饭后约 30 分钟开始散步，体力不足时先走 15-20 分钟。",
   },
   {
     category: "stress",
