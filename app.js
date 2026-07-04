@@ -330,9 +330,13 @@ function renderAnalysis(analysis) {
       <div class="analysis-card stack">
         <div class="panel-header"><h3>${analysis.title}</h3><span class="risk-pill">${sourceLabel}</span></div>
         <p class="muted">${analysis.summary}</p>
+        ${result.key_findings?.length ? `<ul class="warning-list">${result.key_findings.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}
         <div class="field-table">
-          ${result.fields.map((field) => `<div><strong>${field.label}</strong><span>${field.value}<br><small>${field.note}</small></span></div>`).join("")}
+          ${(result.fields || []).map((field) => `<div><strong>${escapeHtml(field.label)}</strong><span>${escapeHtml(field.value)}<br><small>${escapeHtml(field.note)}</small></span></div>`).join("")}
         </div>
+        ${result.interpretation ? `<p class="helper">${escapeHtml(result.interpretation)}</p>` : ""}
+        ${result.action_suggestions?.length ? `<p class="helper">行动建议：${result.action_suggestions.map(escapeHtml).join("；")}</p>` : ""}
+        ${result.doctor_questions?.length ? `<p class="helper">就诊时可问：${result.doctor_questions.map(escapeHtml).join("；")}</p>` : ""}
         <button class="secondary-button" type="button">确认无误，生成今日行动</button>
       </div>
     `;

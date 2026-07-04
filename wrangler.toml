@@ -5,6 +5,7 @@ pages_build_output_dir = "."
 [vars]
 TOKENDANCE_BASE_URL = "https://tokendance.space/gateway/v1"
 TOKENDANCE_MODEL = "kimi-k2.6"
+TOKENDANCE_OCR_MODEL = "qwen3-vl-plus"
 TOKENDANCE_THINKING_ENABLED = "false"
 TOKENDANCE_STREAM_ENABLED = "true"
 
