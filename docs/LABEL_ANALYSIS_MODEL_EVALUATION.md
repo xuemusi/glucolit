@@ -33,8 +33,32 @@
 
 决策：
 - 配料表链路采用 `qwen3-vl-plus` 做 OCR。
-- 叙述模型默认使用 `gpt-5.4-mini`，通过 `LABEL_NARRATIVE_BASE_URL` 和 `LABEL_NARRATIVE_MODEL` 配置。
+- 叙述模型默认使用 `gemini-3.1-flash-lite-preview`，通过 `LABEL_NARRATIVE_BASE_URL` 和 `LABEL_NARRATIVE_MODEL` 配置。
 - 生产环境复用已配置的 `REPORT_NARRATIVE_API_KEY`，不把 API Key 写入仓库。
+
+## 2026-07-04 速度复测
+
+用户反馈页面响应仍慢，补测 `gemini-3.1-flash-lite-preview` 与 `gemini-3.5-flash`。
+
+同一份配料表 OCR + 规则数据，连续 2 次直接调用叙述模型：
+
+| 模型 | 成功率 | 平均耗时 | 质量结论 |
+| --- | --- | ---: | --- |
+| `gemini-3.1-flash-lite-preview` | 2/2 | 2.45s | 输出克制，能保留 0 糖/0 碳水优势，也提醒植物成分不等于控糖功效 |
+| `gemini-3.5-flash` | 2/2 | 6.75s | 可用但波动较大 |
+| `gpt-5.4-mini` | 2/2 | 7.01s | 质量可用，但速度慢 |
+| `gemini-2.5-pro-nothinking` | 2/2 | 7.47s | 可用但无速度优势 |
+
+同一张配料表图片做 OCR/视觉抽取：
+
+| 模型 | 耗时 | 识别结果 |
+| --- | ---: | --- |
+| `gemini-3.1-flash-lite-preview` | 5.62s | 识别 9 个配料，关键字段命中 6/6 |
+| `gemini-3.5-flash` | 4.00s | 识别 9 个配料，关键字段命中 6/6 |
+
+本轮决策：
+- 低风险调整：先把配料表叙述模型从 `gpt-5.4-mini` 切到 `gemini-3.1-flash-lite-preview`。
+- 暂不替换 OCR：`gemini-3.5-flash` 在单张图上更快，但 OCR 是高风险环节，需要至少覆盖报告、配料表、餐盘多图回归后再切。
 
 ## 规则层调整
 

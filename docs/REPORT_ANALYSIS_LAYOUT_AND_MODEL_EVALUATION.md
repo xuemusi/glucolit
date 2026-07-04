@@ -65,3 +65,27 @@
   - 报告表格数量为 2。
   - 原始字段默认折叠。
   - `document.body.scrollWidth` 等于移动视口宽度 390。
+
+## 2026-07-04 速度复测
+
+用户反馈页面响应仍慢，补测 `gemini-3.1-flash-lite-preview` 与 `gemini-3.5-flash`。
+
+同一份报告 OCR + 规则数据，连续 2 次直接调用叙述模型：
+
+| 模型 | 成功率 | 平均耗时 | 质量结论 |
+| --- | --- | ---: | --- |
+| `gemini-3.1-flash-lite-preview` | 2/2 | 3.79s | 合格，能区分 2h OGTT 诊断点和 1h 观察信号 |
+| `gemini-2.5-pro-nothinking` | 2/2 | 3.94s | 当前默认，质量合格 |
+| `gemini-3.5-flash` | 2/2 | 6.35s | 可用但更慢 |
+| `gpt-5.4-mini` | 2/2 | 28.79s | 明显过慢 |
+
+同一张报告图片做 OCR：
+
+| 模型 | 耗时 | 识别结果 |
+| --- | ---: | --- |
+| `gemini-3.1-flash-lite-preview` | 7.40s | 12 行字段，关键值命中 12/12 |
+| `gemini-3.5-flash` | 5.68s | 12 行字段，关键值命中 12/12 |
+
+本轮决策：
+- 报告叙述暂不切：`gemini-3.1-flash-lite-preview` 只比当前 `gemini-2.5-pro-nothinking` 快约 0.15s，收益不足以抵消 preview 模型稳定性风险。
+- 报告 OCR 暂不切：候选模型单图表现可用，但 OCR 是医疗报告链路的高风险环节，需要更多报告样本回归后再替换 `qwen3-vl-plus`。

@@ -299,7 +299,7 @@ async function analyzeLabelWithStructuredPipeline({ env, photoName, imageData, m
       (env.LABEL_NARRATIVE_API_KEY || env.REPORT_NARRATIVE_API_KEY),
   );
   const narrativeBaseUrl = useExternalNarrative ? env.LABEL_NARRATIVE_BASE_URL || env.REPORT_NARRATIVE_BASE_URL : baseUrl;
-  const narrativeModel = useExternalNarrative ? env.LABEL_NARRATIVE_MODEL || "gpt-5.4-mini" : model;
+  const narrativeModel = useExternalNarrative ? env.LABEL_NARRATIVE_MODEL || "gemini-3.1-flash-lite-preview" : model;
   const narrativeApiKey = useExternalNarrative ? env.LABEL_NARRATIVE_API_KEY || env.REPORT_NARRATIVE_API_KEY : env.TOKENDANCE_API_KEY;
   let narrativePayload;
   let narrativeModelLabel = narrativeModel;
