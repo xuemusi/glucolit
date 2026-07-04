@@ -12,6 +12,7 @@ export async function analyzeWithModel({ env, type, photoName, imageData, mimeTy
   const model = env.TOKENDANCE_MODEL || "kimi-k2.6";
   const sample = analysisSamples[type];
   const messages = buildMessages(type, sample, photoName, imageData, mimeType);
+  const thinkingEnabled = envFlag(env.TOKENDANCE_THINKING_ENABLED, false);
 
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
@@ -19,12 +20,7 @@ export async function analyzeWithModel({ env, type, photoName, imageData, mimeTy
       authorization: `Bearer ${apiKey}`,
       "content-type": "application/json",
     },
-    body: JSON.stringify({
-      model,
-      temperature: 0.2,
-      max_tokens: 1400,
-      messages,
-    }),
+    body: JSON.stringify(buildRequestBody({ model, messages, thinkingEnabled, stream: false })),
   });
 
   const payload = await response.json().catch(() => ({}));
@@ -45,6 +41,98 @@ export async function analyzeWithModel({ env, type, photoName, imageData, mimeTy
     ...normalized,
     model,
   };
+}
+
+export async function analyzeWithModelStream({ env, type, photoName, imageData, mimeType, onContent }) {
+  const apiKey = env.TOKENDANCE_API_KEY;
+  if (!apiKey) {
+    throw new Error("TOKENDANCE_API_KEY is not configured");
+  }
+
+  const baseUrl = env.TOKENDANCE_BASE_URL || "https://tokendance.space/gateway/v1";
+  const model = env.TOKENDANCE_MODEL || "kimi-k2.6";
+  const sample = analysisSamples[type];
+  const messages = buildMessages(type, sample, photoName, imageData, mimeType);
+  const thinkingEnabled = envFlag(env.TOKENDANCE_THINKING_ENABLED, false);
+
+  const response = await fetch(`${baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${apiKey}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(buildRequestBody({ model, messages, thinkingEnabled, stream: true })),
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.error?.message || `LLM request failed: ${response.status}`);
+  }
+  if (!response.body) {
+    throw new Error("LLM stream body is empty");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let content = "";
+
+  async function handleBlock(block) {
+    for (const rawLine of block.split("\n")) {
+      const line = rawLine.trim();
+      if (!line.startsWith("data:")) continue;
+      const data = line.slice(5).trim();
+      if (!data || data === "[DONE]") continue;
+
+      const parsed = JSON.parse(data);
+      const delta = parsed.choices?.[0]?.delta || {};
+      if (typeof delta.content === "string" && delta.content) {
+        content += delta.content;
+        await onContent?.(delta.content);
+      }
+    }
+  }
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const blocks = buffer.split("\n\n");
+    buffer = blocks.pop() || "";
+    for (const block of blocks) {
+      await handleBlock(block);
+    }
+  }
+  if (buffer.trim()) await handleBlock(buffer);
+
+  if (!content) {
+    throw new Error("LLM returned empty stream content");
+  }
+
+  const parsed = parseJsonObject(content);
+  const normalized = normalizeAnalysis(type, parsed, sample);
+  assertSafeCopy(normalized);
+
+  return {
+    ...normalized,
+    model,
+  };
+}
+
+function buildRequestBody({ model, messages, thinkingEnabled, stream }) {
+  return {
+    model,
+    temperature: 0.2,
+    max_tokens: 1400,
+    stream,
+    thinking: { type: thinkingEnabled ? "enabled" : "disabled" },
+    messages,
+  };
+}
+
+export function envFlag(value, fallback = false) {
+  if (value === undefined || value === null || value === "") return fallback;
+  return ["1", "true", "yes", "on"].includes(String(value).toLowerCase());
 }
 
 function buildMessages(type, sample, photoName, imageData, mimeType) {

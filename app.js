@@ -16,6 +16,8 @@ const state = {
   latestAnalysisMeta: null,
   selectedFileName: "",
   selectedContent: null,
+  streamText: "",
+  streamStatus: "",
   loading: false,
 };
 
@@ -46,6 +48,83 @@ async function api(path, options = {}) {
     throw new Error(data.error || "请求失败");
   }
   return data;
+}
+
+async function analyzeApi(body) {
+  const response = await fetch("/api/analyze", {
+    method: "POST",
+    headers: {
+      accept: "text/event-stream",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  const contentType = response.headers.get("content-type") || "";
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || "请求失败");
+  }
+
+  if (!contentType.includes("text/event-stream")) {
+    const data = await response.json();
+    applyAnalysisResult(data);
+    return;
+  }
+
+  await readAnalysisStream(response);
+}
+
+async function readAnalysisStream(response) {
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  const handleBlock = (block) => {
+    let event = "message";
+    const dataLines = [];
+    block.split("\n").forEach((rawLine) => {
+      const line = rawLine.trimEnd();
+      if (line.startsWith("event:")) event = line.slice(6).trim();
+      if (line.startsWith("data:")) dataLines.push(line.slice(5).trimStart());
+    });
+    if (!dataLines.length) return;
+
+    const payload = JSON.parse(dataLines.join("\n"));
+    if (event === "meta") {
+      state.latestAnalysisMeta = { fallback: payload.fallback, model: payload.model, thinking: payload.thinking };
+      state.streamStatus = payload.thinking === "disabled" ? "已关闭思考模式，正在流式识别..." : "正在流式识别...";
+      render();
+    }
+    if (event === "token") {
+      state.streamText += payload.content || "";
+      state.streamStatus = "模型正在输出结构化结果...";
+      render();
+    }
+    if (event === "fallback") {
+      state.streamStatus = payload.message || "已切换兜底结果";
+      render();
+    }
+    if (event === "done") {
+      applyAnalysisResult(payload);
+    }
+  };
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const blocks = buffer.split("\n\n");
+    buffer = blocks.pop() || "";
+    blocks.forEach(handleBlock);
+  }
+  if (buffer.trim()) handleBlock(buffer);
+}
+
+function applyAnalysisResult(data) {
+  state.latestAnalysis = data.analysis;
+  state.latestAnalysisMeta = { fallback: data.fallback, model: data.model, model_error: data.model_error };
+  state.streamStatus = data.fallback ? "已使用兜底结果" : "识别完成";
 }
 
 function saveSession(data) {
@@ -202,19 +281,20 @@ function renderTools() {
       <div class="scanner-panel stack">
         <div class="panel-header">
           <h2>${scannerTitle(state.selectedTool)}</h2>
-          <span class="risk-pill">${state.latestAnalysisMeta?.fallback === false ? "模型分析" : "失败自动兜底"}</span>
+          <span class="risk-pill">${state.loading ? "流式识别中" : state.latestAnalysisMeta?.fallback === false ? "模型分析" : "失败自动兜底"}</span>
         </div>
         <div class="scanner-frame">
           <div class="scanner-line"></div>
           <strong>${state.selectedFileName || scannerHint(state.selectedTool)}</strong>
-          <span>${state.selectedFileName ? "已选择图片，将使用演示识别结果完成流程" : "支持拍照/相册；Demo 会使用稳定样例结果"}</span>
+          <span>${state.selectedFileName ? "已选择图片，模型会边识别边输出结果" : "支持拍照/相册；识别结果会流式显示"}</span>
         </div>
-        <input class="file-input" id="photoInput" type="file" accept="image/*" capture="environment">
+        <input class="file-input" id="photoInput" type="file" accept="image/*">
         <div class="tool-actions">
           <button class="primary-button" type="button" data-photo-trigger>${state.loading ? "正在识别关键信息..." : "拍照上传"}</button>
           <button class="secondary-button" type="button" data-analyze="${state.selectedTool}">使用样例</button>
         </div>
       </div>
+      ${state.loading || state.streamText ? renderStreamOutput() : ""}
       ${state.latestAnalysis ? renderAnalysis(state.latestAnalysis) : ""}
       ${boundary()}
     </section>
@@ -276,6 +356,32 @@ function renderAnalysis(analysis) {
       <p class="helper">${result.boundary}</p>
     </div>
   `;
+}
+
+function renderStreamOutput() {
+  const readable = streamReadableText(state.streamText);
+  return `
+    <div class="stream-card" aria-live="polite">
+      <div class="stream-header">
+        <span>${state.streamStatus || "准备识别..."}</span>
+        <i></i>
+      </div>
+      <p class="typewriter-text">${escapeHtml(readable || "等待模型返回第一段内容...")}</p>
+    </div>
+  `;
+}
+
+function streamReadableText(raw) {
+  const cleaned = raw.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
+  const summary = cleaned.match(/"summary"\s*:\s*"([^"]*)/);
+  if (summary?.[1]) return summary[1];
+  const title = cleaned.match(/"title"\s*:\s*"([^"]*)/);
+  if (title?.[1]) return title[1];
+  return cleaned.slice(0, 220);
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 }
 
 function renderActions() {
@@ -533,38 +639,46 @@ function bindViewEvents() {
       if (!file) return;
       state.selectedFileName = file.name || "已选择图片";
       state.loading = true;
+      state.latestAnalysis = null;
+      state.latestAnalysisMeta = null;
+      state.streamText = "";
+      state.streamStatus = "正在压缩并提交图片...";
       render();
-      const image = await fileToBase64(file);
-      const data = await api("/api/analyze", {
-        method: "POST",
-        body: JSON.stringify({
+      try {
+        const image = await fileToBase64(file);
+        await analyzeApi({
           user_id: state.user.id,
           type: state.selectedTool,
           photo_name: file.name,
           mime_type: file.type,
           image_data: image.base64,
-        }),
-      });
-      state.latestAnalysis = data.analysis;
-      state.latestAnalysisMeta = { fallback: data.fallback, model: data.model, model_error: data.model_error };
-      state.loading = false;
-      await loadAppState();
-      render();
+        });
+        await loadAppState();
+      } catch (error) {
+        state.streamStatus = error.message || "识别失败，请稍后重试";
+      } finally {
+        state.loading = false;
+        render();
+      }
     });
   });
   document.querySelectorAll("[data-analyze]").forEach((button) => {
     button.addEventListener("click", async () => {
       state.loading = true;
+      state.latestAnalysis = null;
+      state.latestAnalysisMeta = null;
+      state.streamText = "";
+      state.streamStatus = "正在提交样例识别...";
       render();
-      const data = await api("/api/analyze", {
-        method: "POST",
-        body: JSON.stringify({ user_id: state.user.id, type: button.dataset.analyze }),
-      });
-      state.latestAnalysis = data.analysis;
-      state.latestAnalysisMeta = { fallback: data.fallback, model: data.model, model_error: data.model_error };
-      state.loading = false;
-      await loadAppState();
-      render();
+      try {
+        await analyzeApi({ user_id: state.user.id, type: button.dataset.analyze });
+        await loadAppState();
+      } catch (error) {
+        state.streamStatus = error.message || "识别失败，请稍后重试";
+      } finally {
+        state.loading = false;
+        render();
+      }
     });
   });
   document.querySelectorAll("[data-action-id]").forEach((button) => {
