@@ -723,6 +723,38 @@ button {
   padding: 10px 11px;
 }
 
+.report-finding-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.report-finding-list li {
+  position: relative;
+  border: 1px solid rgba(200, 217, 204, 0.88);
+  border-radius: 14px;
+  background: rgba(255, 253, 247, 0.86);
+  color: var(--ink);
+  padding: 10px 12px 10px 30px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.report-finding-list li::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 1.05em;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--teal);
+  box-shadow: 0 0 0 4px rgba(116, 197, 154, 0.16);
+}
+
 .report-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--line);

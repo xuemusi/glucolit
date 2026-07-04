@@ -127,6 +127,7 @@ function applyAnalysisResult(data) {
   state.latestAnalysis = data.analysis;
   state.latestAnalysisMeta = { fallback: data.fallback, model: data.model, model_error: data.model_error };
   state.streamStatus = data.fallback ? "已整理参考建议" : "建议已生成";
+  state.streamText = "";
 }
 
 function saveSession(data) {
@@ -299,7 +300,7 @@ function renderTools() {
           <button class="secondary-button" type="button" data-analyze="${state.selectedTool}">使用样例</button>
         </div>
       </div>
-      ${state.loading || state.streamText ? renderStreamOutput() : ""}
+      ${state.loading ? renderStreamOutput() : ""}
       ${state.latestAnalysis ? renderAnalysis(state.latestAnalysis) : ""}
       ${boundary()}
     </section>
@@ -367,7 +368,7 @@ function renderAnalysis(analysis) {
       <div class="analysis-card report-analysis stack">
         <div class="panel-header"><h3>${analysis.title}</h3><span class="risk-pill">${sourceLabel}</span></div>
         <p class="muted">${analysis.summary}</p>
-        ${result.key_findings?.length ? `<ul class="warning-list compact-list">${result.key_findings.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}
+        ${result.key_findings?.length ? `<ul class="report-finding-list">${result.key_findings.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}
         ${renderReportStandardTable(result.standard_comparison || [])}
         ${renderReportCurveTable(result.curve_rows || [])}
         ${renderReportDerived(result.derived_indicators || [])}
