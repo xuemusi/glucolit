@@ -5,6 +5,7 @@ const registerError = document.querySelector("#registerError");
 const phoneInput = document.querySelector("#phoneInput");
 const resetUser = document.querySelector("#resetUser");
 const navButtons = [...document.querySelectorAll(".nav-button")];
+const analysisTimeoutMs = 150000;
 
 const state = {
   view: "home",
@@ -139,7 +140,7 @@ async function analyzeApi(body, tool = body.type || state.selectedTool) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => {
     controller.abort();
-  }, 35000); // 35 秒超时
+  }, analysisTimeoutMs);
 
   try {
     const response = await fetch("/api/analyze", {

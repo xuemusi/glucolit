@@ -153,7 +153,7 @@ export async function analyzeWithModelStream({ env, type, photoName, imageData, 
 function buildRequestBody({ model, messages, thinkingEnabled, stream }) {
   return {
     model,
-    temperature: 0.2,
+    temperature: modelTemperature(model, 0.2),
     max_tokens: 1400,
     stream,
     thinking: { type: thinkingEnabled ? "enabled" : "disabled" },
@@ -226,47 +226,61 @@ async function analyzeReportWithStructuredPipeline({ env, photoName, imageData, 
 
 async function analyzeMealWithStructuredPipeline({ env, photoName, imageData, mimeType, onContent }) {
   const sample = analysisSamples.meal;
-  const baseUrl = env.TOKENDANCE_BASE_URL || "https://tokendance.space/gateway/v1";
-  const model = env.TOKENDANCE_MODEL || "kimi-k2.6";
-  const visionModel = env.TOKENDANCE_OCR_MODEL || "qwen3-vl-plus";
-  const thinkingEnabled = envFlag(env.TOKENDANCE_THINKING_ENABLED, false);
+  const useExternalMeal = Boolean(
+    env.MEAL_MODEL &&
+      (env.MEAL_BASE_URL || env.REPORT_NARRATIVE_BASE_URL) &&
+      (env.MEAL_API_KEY || env.REPORT_NARRATIVE_API_KEY),
+  );
+  const baseUrl = useExternalMeal ? env.MEAL_BASE_URL || env.REPORT_NARRATIVE_BASE_URL : env.TOKENDANCE_BASE_URL || "https://tokendance.space/gateway/v1";
+  const apiKey = useExternalMeal ? env.MEAL_API_KEY || env.REPORT_NARRATIVE_API_KEY : env.TOKENDANCE_API_KEY;
+  const model = useExternalMeal ? env.MEAL_MODEL : env.TOKENDANCE_MODEL || "kimi-k2.6";
+  const thinkingEnabled = useExternalMeal ? false : envFlag(env.TOKENDANCE_THINKING_ENABLED, false);
+  const pipelineStarted = Date.now();
 
   await onContent?.("正在识别餐盘中的主食、蛋白质、蔬菜和烹饪方式...\n");
-  const visionPayload = await requestChatJson({
+  const mealPayload = await requestChatJson({
     env,
     baseUrl,
-    model: visionModel,
-    thinkingEnabled,
-    temperature: 0,
-    maxTokens: 1600,
-    messages: buildMealVisionMessages({ photoName, imageData, mimeType }),
-  });
-  const mealItems = normalizeMealItems(visionPayload.items);
-  if (!mealItems.length) {
-    throw new Error("Meal vision did not return food items");
-  }
-
-  const rules = buildMealRules(mealItems, visionPayload.overall);
-  await onContent?.("已完成餐盘结构判断，正在生成糖前友好的替换建议...\n");
-
-  const narrativePayload = await requestChatJson({
-    env,
-    baseUrl,
+    apiKey,
     model,
     thinkingEnabled,
-    temperature: 0.1,
-    maxTokens: 1600,
-    messages: buildMealNarrativeMessages({ mealItems, rules }),
+    includeThinking: !useExternalMeal,
+    temperature: useExternalMeal ? 0.1 : 0,
+    maxTokens: 2200,
+    messages: buildMealMultimodalMessages({ photoName, imageData, mimeType }),
   });
+  logModelTiming("meal_multimodal_done", {
+    model,
+    provider: useExternalMeal ? "external_meal" : "tokendance",
+    duration_ms: Date.now() - pipelineStarted,
+    image_kb: estimateBase64Kb(imageData),
+    mime_type: mimeType || "unknown",
+  });
+  const mealItems = normalizeMealItems(mealPayload.items);
+  if (!mealItems.length) {
+    throw new Error("Meal model did not return food items");
+  }
 
-  const normalized = normalizeStructuredMeal(narrativePayload, mealItems, rules, sample);
+  const rules = buildMealRules(mealItems, mealPayload.overall);
+  await onContent?.("已完成餐盘结构判断，正在生成糖前友好的替换建议...\n");
+
+  const normalized = normalizeStructuredMeal(mealPayload, mealItems, rules, sample);
   assertSafeCopy(normalized);
   await onContent?.(`${normalized.summary}\n`);
 
   return {
     ...normalized,
-    model: `${visionModel} vision + ${model}`,
+    model: `${model} multimodal`,
   };
+}
+
+function logModelTiming(event, details) {
+  console.log(JSON.stringify({ event, ...details }));
+}
+
+function estimateBase64Kb(value) {
+  if (!value) return 0;
+  return Math.round((value.length * 3) / 4 / 1024);
 }
 
 async function analyzeLabelWithStructuredPipeline({ env, photoName, imageData, mimeType, onContent }) {
@@ -332,9 +346,10 @@ async function analyzeLabelWithStructuredPipeline({ env, photoName, imageData, m
 }
 
 async function requestChatJson({ env, baseUrl, apiKey = env.TOKENDANCE_API_KEY, model, thinkingEnabled, includeThinking = true, temperature, maxTokens, messages }) {
+  const started = Date.now();
   const requestBody = {
     model,
-    temperature,
+    temperature: modelTemperature(model, temperature),
     max_tokens: maxTokens,
     stream: false,
     messages,
@@ -354,13 +369,33 @@ async function requestChatJson({ env, baseUrl, apiKey = env.TOKENDANCE_API_KEY, 
 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(payload.error?.message || `LLM request failed: ${response.status}`);
+    const message = payload.error?.message || `LLM request failed: ${response.status}`;
+    logModelTiming("llm_request_failed", {
+      model,
+      status: response.status,
+      duration_ms: Date.now() - started,
+      message: sanitizeLogMessage(message),
+    });
+    throw new Error(message);
   }
   const content = payload.choices?.[0]?.message?.content;
   if (!content) {
+    logModelTiming("llm_empty_content", {
+      model,
+      status: response.status,
+      duration_ms: Date.now() - started,
+    });
     throw new Error("LLM returned empty content");
   }
   return parseJsonObject(content);
+}
+
+function sanitizeLogMessage(message) {
+  return String(message || "").replace(/sk-[A-Za-z0-9_-]+/g, "sk-***").slice(0, 240);
+}
+
+function modelTemperature(model, fallback) {
+  return String(model || "").toLowerCase() === "kimi-k2.6" ? 0.6 : fallback;
 }
 
 function buildReportOcrMessages({ photoName, imageData, mimeType }) {
@@ -390,13 +425,18 @@ function buildReportOcrMessages({ photoName, imageData, mimeType }) {
   ];
 }
 
-function buildMealVisionMessages({ photoName, imageData, mimeType }) {
+function buildMealMultimodalMessages({ photoName, imageData, mimeType }) {
   const prompt = [
-    "你只做餐盘视觉识别，不做诊断，不估算精确热量。",
+    "你做餐盘视觉识别和糖前生活方式建议，不做诊断，不估算精确热量。",
     photoName ? `文件名：${photoName}` : "",
-    "请识别图片中可见食物，按糖前生活方式支持所需维度分类。",
+    "请识别图片中可见食物，按糖前生活方式支持所需维度分类，并生成温和、具体、可执行的建议。",
+    "食物 name、标题、摘要和建议必须全部使用简体中文；看不准时用“疑似...”中文描述，不要输出英文食物名。",
+    "不要编造 GI/GL/II 数值；如果需要提到营养知识，只能使用“后续可结合知识库判断”这类表达，具体数值由后端规则层补充。",
+    "不使用绝对化禁令；用“优先、可以、建议、减少、替换、控制份量”表达。",
+    "如果是多人共享餐桌，要提醒结果是按图片估计，实际摄入量需用户确认。",
+    "建议中必须包含：先吃菜和蛋白、最后吃主食；如果有精白主食，可把 1/3 白米饭换成杂粮/杂豆。",
     "只输出严格 JSON：",
-    `{"items":[{"name":"","category":"staple|protein|vegetable|fat_sauce|drink|fruit|unknown","portion":"small|medium|large|unknown","cooking":"steamed|boiled|stir_fried|fried|soup|raw|unknown","visible_clues":[""],"confidence":"low|medium|high"}],"overall":{"shared_table":true,"drink_visible":false,"sauce_oil_level":"low|medium|high|unknown","notes":[]}}`,
+    `{"title":"","summary":"","items":[{"name":"","category":"staple|protein|vegetable|fat_sauce|drink|fruit|unknown","portion":"small|medium|large|unknown","cooking":"steamed|boiled|stir_fried|fried|soup|raw|unknown","visible_clues":[""],"confidence":"low|medium|high"}],"overall":{"shared_table":true,"drink_visible":false,"sauce_oil_level":"low|medium|high|unknown","notes":[]},"observations":[""],"swaps":[""],"meal_order":[""],"boundary":""}`,
     "不要补不存在的数据。不要 Markdown。不要解释。",
   ]
     .filter(Boolean)
@@ -405,7 +445,7 @@ function buildMealVisionMessages({ photoName, imageData, mimeType }) {
   return [
     {
       role: "system",
-      content: "你是严谨的餐盘视觉识别引擎。只输出 JSON 对象。",
+      content: "你是 GLUCOLIT 的糖尿病前期餐盘分析助手，擅长把图片中的食物结构转成低门槛行动建议。只输出 JSON 对象。",
     },
     {
       role: "user",
@@ -735,16 +775,83 @@ function normalizeStructuredReport(parsed, ocrRows, rules, sample) {
 function normalizeMealItems(items) {
   if (!Array.isArray(items)) return [];
   return items
-    .map((item) => ({
-      name: cleanText(item.name),
-      category: normalizeMealCategory(item.category, item.name),
-      portion: ["small", "medium", "large", "unknown"].includes(item.portion) ? item.portion : "unknown",
-      cooking: ["steamed", "boiled", "stir_fried", "fried", "soup", "raw", "unknown"].includes(item.cooking) ? item.cooking : "unknown",
-      visible_clues: toTextArray(item.visible_clues),
-      confidence: ["low", "medium", "high"].includes(item.confidence) ? item.confidence : "medium",
-    }))
+    .map((item) => {
+      const name = normalizeMealItemName(item.name);
+      return {
+        name,
+        category: normalizeMealCategory(item.category, name),
+        portion: ["small", "medium", "large", "unknown"].includes(item.portion) ? item.portion : "unknown",
+        cooking: ["steamed", "boiled", "stir_fried", "fried", "soup", "raw", "unknown"].includes(item.cooking) ? item.cooking : "unknown",
+        visible_clues: toTextArray(item.visible_clues),
+        confidence: ["low", "medium", "high"].includes(item.confidence) ? item.confidence : "medium",
+      };
+    })
     .map((item) => ({ ...item, nutrition_refs: findNutritionMatches(item.name) }))
     .filter((item) => item.name && item.category !== "unknown");
+}
+
+function normalizeMealItemName(name) {
+  const value = cleanText(name);
+  if (!value) return "";
+  if (!/[A-Za-z]/.test(value)) return value;
+
+  const normalized = value.toLowerCase().replace(/\s+/g, " ").trim();
+  const exact = {
+    "rice with greens": "青菜米饭",
+    "steamed bun": "馒头",
+    "roasted potato": "烤土豆",
+    "tofu block": "豆腐块",
+    "tofu blocks": "豆腐块",
+    "fried meat strips": "炸肉条",
+    dumpling: "饺子",
+    dumplings: "饺子",
+    "eggplant with sauce": "酱汁茄子",
+    "pan-fried vegetable patty": "煎蔬菜饼",
+    tofu: "豆腐",
+    rice: "米饭",
+    corn: "玉米",
+    "corn in soup": "汤里的玉米",
+    "egg yolk": "蛋黄",
+    "leafy vegetable": "绿叶菜",
+    "fried patty": "煎/炸饼",
+  };
+  if (exact[normalized]) return exact[normalized];
+
+  let translated = normalized;
+  const replacements = [
+    [/rice/g, "米饭"],
+    [/greens?/g, "青菜"],
+    [/steamed bun/g, "馒头"],
+    [/bun/g, "馒头"],
+    [/roasted potato/g, "烤土豆"],
+    [/potato/g, "土豆"],
+    [/tofu blocks?/g, "豆腐块"],
+    [/tofu/g, "豆腐"],
+    [/fried meat strips?/g, "炸肉条"],
+    [/meat strips?/g, "肉条"],
+    [/dumplings?/g, "饺子"],
+    [/eggplant/g, "茄子"],
+    [/sauce/g, "酱汁"],
+    [/pan-fried/g, "煎"],
+    [/vegetable patt(y|ies)/g, "蔬菜饼"],
+    [/vegetables?/g, "蔬菜"],
+    [/corn/g, "玉米"],
+    [/soup/g, "汤"],
+    [/egg yolk/g, "蛋黄"],
+    [/leafy/g, "绿叶"],
+    [/fried/g, "煎/炸"],
+    [/patty/g, "饼"],
+  ];
+  for (const [pattern, replacement] of replacements) {
+    translated = translated.replace(pattern, replacement);
+  }
+  translated = translated
+    .replace(/\s*(with|and|in|or)\s*/g, "、")
+    .replace(/[,\s]+/g, "、")
+    .replace(/、+/g, "、")
+    .replace(/^、|、$/g, "");
+
+  return /[A-Za-z]/.test(translated) ? value : translated;
 }
 
 function normalizeMealCategory(category, name) {
