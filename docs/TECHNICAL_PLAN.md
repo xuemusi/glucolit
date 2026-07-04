@@ -257,6 +257,13 @@ D1 数据库：`glucolit`
 - `model`：成功时返回模型名。
 - `model_error`：兜底时用于调试的错误信息。
 
+报告图片链路：
+
+- `qwen3-vl-plus` 做 OCR，抽取葡萄糖、胰岛素、C 肽、HbA1c 等字段。
+- 后端规则层计算 OGTT 标准对比、HOMA-IR、曲线峰值、3h 回落、胰岛素/C 肽相对空腹倍数。
+- 叙述模型默认走 `REPORT_NARRATIVE_BASE_URL` + `REPORT_NARRATIVE_MODEL`；未配置 `REPORT_NARRATIVE_API_KEY` 时回退 `TOKENDANCE_MODEL`。
+- 前端优先渲染规则层结构：`standard_comparison`、`curve_rows`、`derived_indicators`、`professional_advice`，避免模型文案偏弱时影响专业呈现。
+
 ### 4.5 GET `/api/actions?user_id=...`
 
 查询今日行动。

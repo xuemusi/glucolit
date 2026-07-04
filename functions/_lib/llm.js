@@ -158,6 +158,10 @@ async function analyzeReportWithStructuredPipeline({ env, photoName, imageData, 
   const baseUrl = env.TOKENDANCE_BASE_URL || "https://tokendance.space/gateway/v1";
   const model = env.TOKENDANCE_MODEL || "kimi-k2.6";
   const ocrModel = env.TOKENDANCE_OCR_MODEL || "qwen3-vl-plus";
+  const useExternalNarrative = Boolean(env.REPORT_NARRATIVE_BASE_URL && env.REPORT_NARRATIVE_API_KEY);
+  const narrativeBaseUrl = useExternalNarrative ? env.REPORT_NARRATIVE_BASE_URL : baseUrl;
+  const narrativeModel = useExternalNarrative ? env.REPORT_NARRATIVE_MODEL || model : model;
+  const narrativeApiKey = useExternalNarrative ? env.REPORT_NARRATIVE_API_KEY : env.TOKENDANCE_API_KEY;
   const thinkingEnabled = envFlag(env.TOKENDANCE_THINKING_ENABLED, false);
 
   await onContent?.("正在提取报告中的血糖、胰岛素、C肽和糖化血红蛋白字段...\n");
@@ -180,9 +184,11 @@ async function analyzeReportWithStructuredPipeline({ env, photoName, imageData, 
 
   const narrativePayload = await requestChatJson({
     env,
-    baseUrl,
-    model,
-    thinkingEnabled,
+    baseUrl: narrativeBaseUrl,
+    apiKey: narrativeApiKey,
+    model: narrativeModel,
+    thinkingEnabled: useExternalNarrative ? false : thinkingEnabled,
+    includeThinking: !useExternalNarrative,
     temperature: 0.1,
     maxTokens: 1800,
     messages: buildReportNarrativeMessages({ ocrRows, rules }),
@@ -194,7 +200,7 @@ async function analyzeReportWithStructuredPipeline({ env, photoName, imageData, 
 
   return {
     ...normalized,
-    model: `${ocrModel} OCR + ${model}`,
+    model: `${ocrModel} OCR + ${narrativeModel}`,
   };
 }
 
@@ -243,21 +249,25 @@ async function analyzeMealWithStructuredPipeline({ env, photoName, imageData, mi
   };
 }
 
-async function requestChatJson({ env, baseUrl, model, thinkingEnabled, temperature, maxTokens, messages }) {
+async function requestChatJson({ env, baseUrl, apiKey = env.TOKENDANCE_API_KEY, model, thinkingEnabled, includeThinking = true, temperature, maxTokens, messages }) {
+  const requestBody = {
+    model,
+    temperature,
+    max_tokens: maxTokens,
+    stream: false,
+    messages,
+  };
+  if (includeThinking) {
+    requestBody.thinking = { type: thinkingEnabled ? "enabled" : "disabled" };
+  }
+
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
-      authorization: `Bearer ${env.TOKENDANCE_API_KEY}`,
+      authorization: `Bearer ${apiKey}`,
       "content-type": "application/json",
     },
-    body: JSON.stringify({
-      model,
-      temperature,
-      max_tokens: maxTokens,
-      stream: false,
-      thinking: { type: thinkingEnabled ? "enabled" : "disabled" },
-      messages,
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   const payload = await response.json().catch(() => ({}));
@@ -328,12 +338,13 @@ function buildMealVisionMessages({ photoName, imageData, mimeType }) {
 function buildReportNarrativeMessages({ ocrRows, rules }) {
   const prompt = [
     "下面是视觉模型 OCR 后的检验数据，以及后端规则计算结果。",
-    "请生成面向用户的专业但谨慎的健康教育解读。",
+    "请生成面向用户的专业但谨慎的健康教育解读。内容要具体，不要只复述正常/异常；要解释曲线形态、标准诊断点、观察信号和下一步记录重点。",
     "要求：",
     "1. 不诊断、不治疗、不推荐药物，不说治愈、逆转、保证。",
     "2. 必须区分标准诊断点和风险信号：OGTT 2 小时血糖用于常用糖耐量判断；1 小时血糖偏高只能作为餐后早期波动信号，不能判成糖前期。",
     "3. 必须说明 HOMA-IR 来自胰岛素单位近似换算，切点因人群和检测方法不同。",
-    "4. 只输出 JSON：",
+    "4. 行动建议必须围绕：复查/补充检测、餐后曲线记录、进餐结构、餐后活动、下次检测条件一致性。",
+    "5. 只输出 JSON：",
     `{"title":"","summary":"","key_findings":[""],"interpretation":"","action_suggestions":[""],"doctor_questions":[""],"boundary":""}`,
     `OCR_ROWS=${JSON.stringify(ocrRows)}`,
     `RULES=${JSON.stringify(rules)}`,
@@ -440,9 +451,10 @@ function buildOgttRules(rows) {
     fasting_glucose: classifyFastingGlucose(glucose.fasting),
     two_hour_ogtt: classifyTwoHourGlucose(glucose.h2),
     hba1c: classifyHba1c(hba1c),
-    one_hour_glucose: Number.isFinite(glucose.h1) && glucose.h1 >= 10 ? "high_post_load_signal_not_diagnostic" : "not_high_or_missing",
+    one_hour_glucose: Number.isFinite(glucose.h1) && glucose.h1 >= 8.6 ? "high_post_load_signal_not_diagnostic" : "not_high_or_missing",
     homa_ir: homaRange?.high >= 2.5 ? "elevated_by_common_cutoffs" : "not_high_or_missing",
   };
+  const curve = buildCurveAnalysis({ glucose, insulinRaw, cPeptideRaw });
 
   return {
     thresholds: {
@@ -450,7 +462,7 @@ function buildOgttRules(rows) {
       fasting_glucose_mmol_l: { normal: "<5.6", prediabetes: "5.6-6.9", diabetes: ">=7.0" },
       two_hour_ogtt_mmol_l: { normal: "<7.8", prediabetes: "7.8-11.0", diabetes: ">=11.1" },
       hba1c_percent: { normal: "<5.7", prediabetes: "5.7-6.4", diabetes: ">=6.5" },
-      one_hour_note: "1 小时血糖不是 ADA/CDC 糖前期诊断点；本产品仅作为餐后早期波动信号。",
+      one_hour_note: "1 小时血糖不是 ADA/CDC 糖前期诊断点；本产品仅作为餐后早期波动信号。部分 1h OGTT 共识会用 8.6 mmol/L 作为高风险观察切点。",
     },
     glucose,
     insulin_raw: { values: insulinRaw, unit: insulinUnit },
@@ -462,9 +474,51 @@ function buildOgttRules(rows) {
       homa_ir: homaRange,
       insulin_ratio: ratioSet(insulinRaw),
       c_peptide_ratio: ratioSet(cPeptideRaw),
+      curve,
     },
     flags,
   };
+}
+
+function buildCurveAnalysis({ glucose, insulinRaw, cPeptideRaw }) {
+  const glucosePeak = peakPoint(glucose);
+  const insulinPeak = peakPoint(insulinRaw);
+  const cPeptidePeak = peakPoint(cPeptideRaw);
+  const glucoseRecoveryDelta = Number.isFinite(glucose.h3) && Number.isFinite(glucose.fasting) ? round(glucose.h3 - glucose.fasting, 2) : undefined;
+  const insulinRecoveryRatio = Number.isFinite(insulinRaw.h3) && Number.isFinite(insulinRaw.fasting) && insulinRaw.fasting > 0 ? round(insulinRaw.h3 / insulinRaw.fasting, 1) : undefined;
+  const cPeptideRecoveryRatio = Number.isFinite(cPeptideRaw.h3) && Number.isFinite(cPeptideRaw.fasting) && cPeptideRaw.fasting > 0 ? round(cPeptideRaw.h3 / cPeptideRaw.fasting, 1) : undefined;
+
+  return {
+    glucose_peak: glucosePeak,
+    insulin_peak: insulinPeak,
+    c_peptide_peak: cPeptidePeak,
+    glucose_3h_minus_fasting: glucoseRecoveryDelta,
+    insulin_3h_to_fasting_ratio: insulinRecoveryRatio,
+    c_peptide_3h_to_fasting_ratio: cPeptideRecoveryRatio,
+    recovery_note: buildRecoveryNote({ glucoseRecoveryDelta, insulinRecoveryRatio, cPeptideRecoveryRatio }),
+  };
+}
+
+function peakPoint(values) {
+  const labels = { fasting: "空腹", h1: "1h", h2: "2h", h3: "3h" };
+  const entries = Object.entries(values).filter(([, value]) => Number.isFinite(value));
+  if (!entries.length) return null;
+  const [time, value] = entries.reduce((best, item) => (item[1] > best[1] ? item : best), entries[0]);
+  return { time, label: labels[time] || time, value };
+}
+
+function buildRecoveryNote({ glucoseRecoveryDelta, insulinRecoveryRatio, cPeptideRecoveryRatio }) {
+  const notes = [];
+  if (Number.isFinite(glucoseRecoveryDelta)) {
+    notes.push(glucoseRecoveryDelta <= 0.5 ? "3h 血糖已接近空腹水平" : `3h 血糖仍比空腹高 ${glucoseRecoveryDelta} mmol/L`);
+  }
+  if (Number.isFinite(insulinRecoveryRatio)) {
+    notes.push(insulinRecoveryRatio <= 1.5 ? "3h 胰岛素接近空腹倍数" : `3h 胰岛素约为空腹 ${insulinRecoveryRatio} 倍`);
+  }
+  if (Number.isFinite(cPeptideRecoveryRatio)) {
+    notes.push(cPeptideRecoveryRatio <= 1.8 ? "3h C肽接近空腹倍数" : `3h C肽约为空腹 ${cPeptideRecoveryRatio} 倍`);
+  }
+  return notes.join("；");
 }
 
 function mapValues(source, mapper) {
@@ -552,6 +606,10 @@ function normalizeStructuredReport(parsed, ocrRows, rules, sample) {
     confidence: "high",
     result: {
       fields: buildReportFields(ocrRows, rules),
+      standard_comparison: buildStandardComparison(ocrRows, rules),
+      curve_rows: buildCurveRows(rules),
+      derived_indicators: buildDerivedIndicators(rules),
+      professional_advice: buildProfessionalAdvice(rules),
       key_findings: findings.length ? findings : fallbackFindings(rules),
       interpretation: cleanText(parsed.interpretation) || summary,
       action_suggestions: suggestions,
@@ -780,7 +838,7 @@ function fallbackMealSwaps(rules) {
 
 function buildReportFields(rows, rules) {
   const fields = rows.map((row) => ({
-    label: row.raw_label || labelForRow(row),
+    label: labelForRow(row),
     value: `${row.value}${row.unit ? ` ${row.unit}` : ""}`,
     note: row.reference ? `参考：${row.reference}` : noteForRow(row, rules),
   }));
@@ -795,6 +853,159 @@ function buildReportFields(rows, rules) {
     });
   }
   return fields;
+}
+
+function buildStandardComparison(rows, rules) {
+  const labRef = (analyte, time) => rows.find((row) => row.analyte === analyte && row.time === time)?.reference || "";
+  const comparisons = [];
+  if (Number.isFinite(rules.glucose.fasting)) {
+    comparisons.push({
+      indicator: "空腹血糖",
+      value: `${rules.glucose.fasting} mmol/L`,
+      standard: "ADA/CDC：<5.6 正常；5.6-6.9 糖前期；>=7.0 糖尿病阈值",
+      lab_reference: labRef("glucose", "fasting"),
+      judgement: judgementText(rules.flags.fasting_glucose),
+      note: "空腹血糖是标准筛查点，需结合检测条件和医生判断。",
+    });
+  }
+  if (Number.isFinite(rules.glucose.h2)) {
+    comparisons.push({
+      indicator: "OGTT 2h 血糖",
+      value: `${rules.glucose.h2} mmol/L`,
+      standard: "ADA/CDC：<7.8 正常；7.8-11.0 糖前期；>=11.1 糖尿病阈值",
+      lab_reference: labRef("glucose", "2h"),
+      judgement: judgementText(rules.flags.two_hour_ogtt),
+      note: "2h 是 OGTT 糖耐量判断的核心时间点。",
+    });
+  }
+  if (Number.isFinite(rules.glucose.h1)) {
+    comparisons.push({
+      indicator: "OGTT 1h 血糖",
+      value: `${rules.glucose.h1} mmol/L`,
+      standard: "非 ADA/CDC 糖前期诊断点；部分 1h OGTT 共识用 >=8.6 作为高风险观察切点",
+      lab_reference: labRef("glucose", "1h"),
+      judgement: rules.flags.one_hour_glucose === "high_post_load_signal_not_diagnostic" ? "观察偏高" : "未达观察切点",
+      note: "只作为餐后早期波动信号，不能单独判定糖耐量异常。",
+    });
+  }
+  if (Number.isFinite(rules.glucose.h3)) {
+    const delta = rules.derived.curve?.glucose_3h_minus_fasting;
+    comparisons.push({
+      indicator: "OGTT 3h 血糖",
+      value: `${rules.glucose.h3} mmol/L`,
+      standard: "非标准诊断点，主要看是否向空腹水平回落",
+      lab_reference: labRef("glucose", "3h"),
+      judgement: Number.isFinite(delta) && delta > 1 ? "回落偏慢" : "回落尚可",
+      note: Number.isFinite(delta) ? `比空腹高 ${delta} mmol/L，适合做趋势观察。` : "适合结合曲线形态观察。",
+    });
+  }
+  if (Number.isFinite(rules.hba1c)) {
+    comparisons.push({
+      indicator: "HbA1c",
+      value: `${rules.hba1c}%`,
+      standard: "ADA/CDC：<5.7 正常；5.7-6.4 糖前期；>=6.5 糖尿病阈值",
+      lab_reference: labRef("hba1c", "unknown"),
+      judgement: judgementText(rules.flags.hba1c),
+      note: "反映近 2-3 个月平均血糖，受贫血、HbF 等因素影响。",
+    });
+  }
+  if (rules.derived.homa_ir) {
+    const value =
+      rules.derived.homa_ir.low === rules.derived.homa_ir.high
+        ? String(rules.derived.homa_ir.value)
+        : `${rules.derived.homa_ir.low}-${rules.derived.homa_ir.high}`;
+    comparisons.push({
+      indicator: "HOMA-IR",
+      value,
+      standard: "常见研究切点约 <2.0 或 <2.5；不同人群和检测方法差异较大",
+      lab_reference: "",
+      judgement: rules.flags.homa_ir === "elevated_by_common_cutoffs" ? "需关注" : "未达常见偏高切点",
+      note: rules.derived.homa_ir.note,
+    });
+  }
+  return comparisons;
+}
+
+function buildCurveRows(rules) {
+  const labels = [
+    ["fasting", "空腹"],
+    ["h1", "1h"],
+    ["h2", "2h"],
+    ["h3", "3h"],
+  ];
+  return labels
+    .map(([key, label]) => ({
+      time: label,
+      glucose: formatMaybe(rules.glucose[key], "mmol/L"),
+      insulin: formatMaybe(rules.insulin_raw.values[key], rules.insulin_raw.unit),
+      insulin_ratio: key === "fasting" ? "1.0x" : formatRatio(rules.derived.insulin_ratio[key]),
+      c_peptide: formatMaybe(rules.c_peptide_raw.values[key], rules.c_peptide_raw.unit),
+      c_peptide_ratio: key === "fasting" ? "1.0x" : formatRatio(rules.derived.c_peptide_ratio[key]),
+    }))
+    .filter((row) => row.glucose || row.insulin || row.c_peptide);
+}
+
+function buildDerivedIndicators(rules) {
+  const items = [];
+  const curve = rules.derived.curve || {};
+  if (rules.derived.homa_ir) {
+    const homa = rules.derived.homa_ir;
+    items.push({
+      label: "HOMA-IR",
+      value: homa.low === homa.high ? String(homa.value) : `${homa.low}-${homa.high}`,
+      note: homa.note,
+    });
+  }
+  if (curve.glucose_peak) {
+    items.push({ label: "血糖峰值", value: `${curve.glucose_peak.label} ${curve.glucose_peak.value} mmol/L`, note: "用于观察峰值是否前移和是否顺利回落。" });
+  }
+  if (curve.insulin_peak) {
+    items.push({ label: "胰岛素峰值", value: `${curve.insulin_peak.label} ${curve.insulin_peak.value} ${rules.insulin_raw.unit}`, note: "与血糖峰值一起看分泌时机。" });
+  }
+  if (curve.c_peptide_peak) {
+    items.push({ label: "C肽峰值", value: `${curve.c_peptide_peak.label} ${curve.c_peptide_peak.value} ${rules.c_peptide_raw.unit}`, note: "C肽更能反映内源性分泌趋势。" });
+  }
+  if (curve.recovery_note) {
+    items.push({ label: "3h 回落", value: "趋势观察", note: curve.recovery_note });
+  }
+  return items;
+}
+
+function buildProfessionalAdvice(rules) {
+  const advice = [];
+  if (rules.flags.fasting_glucose === "normal" && rules.flags.two_hour_ogtt === "normal") {
+    advice.push("标准筛查点目前未达糖前期常用切点，重点不是紧张单次结果，而是把本次作为后续趋势基线。");
+  } else {
+    advice.push("标准筛查点出现异常时，应带原始报告给医生确认，并结合 HbA1c、家族史、腰围和用药情况判断。");
+  }
+  if (Number.isFinite(rules.derived.curve?.glucose_3h_minus_fasting) && rules.derived.curve.glucose_3h_minus_fasting > 1) {
+    advice.push("3h 血糖仍高于空腹超过 1 mmol/L，后续可重点记录晚餐主食份量、进餐顺序、餐后活动与 3h 主观状态。");
+  }
+  if (Number.isFinite(rules.derived.curve?.insulin_3h_to_fasting_ratio) && rules.derived.curve.insulin_3h_to_fasting_ratio > 1.5) {
+    advice.push("3h 胰岛素仍为空腹的较高倍数，建议下一次复查保持同样空腹时长、前 3 天饮食和运动条件，避免把条件差异误当成趋势。");
+  }
+  if (!Number.isFinite(rules.hba1c)) {
+    advice.push("这张图没有 HbA1c，若要评估近 2-3 个月平均血糖，可在医生建议下补充 HbA1c，并和 OGTT 一起看。");
+  }
+  advice.push("日常行动优先做低风险实验：主食后置、每餐保留蛋白和蔬菜、餐后 10-20 分钟轻活动，再观察餐后困倦、饥饿和下次检测趋势。");
+  return advice;
+}
+
+function judgementText(flag) {
+  if (flag === "normal") return "正常";
+  if (flag === "prediabetes_threshold") return "达到糖前期筛查切点";
+  if (flag === "diabetes_threshold") return "达到糖尿病筛查切点";
+  if (flag === "missing") return "未识别";
+  return "观察";
+}
+
+function formatMaybe(value, unit) {
+  if (!Number.isFinite(value)) return "";
+  return `${value}${unit ? ` ${unit}` : ""}`;
+}
+
+function formatRatio(value) {
+  return Number.isFinite(value) ? `${value}x` : "";
 }
 
 function labelForRow(row) {

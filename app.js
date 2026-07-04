@@ -364,16 +364,17 @@ function renderAnalysis(analysis) {
       : "参考建议";
   if (analysis.type === "report") {
     return `
-      <div class="analysis-card stack">
+      <div class="analysis-card report-analysis stack">
         <div class="panel-header"><h3>${analysis.title}</h3><span class="risk-pill">${sourceLabel}</span></div>
         <p class="muted">${analysis.summary}</p>
-        ${result.key_findings?.length ? `<ul class="warning-list">${result.key_findings.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}
-        <div class="field-table">
-          ${(result.fields || []).map((field) => `<div><strong>${escapeHtml(field.label)}</strong><span>${escapeHtml(field.value)}<br><small>${escapeHtml(field.note)}</small></span></div>`).join("")}
-        </div>
-        ${result.interpretation ? `<p class="helper">${escapeHtml(result.interpretation)}</p>` : ""}
-        ${result.action_suggestions?.length ? `<p class="helper">行动建议：${result.action_suggestions.map(escapeHtml).join("；")}</p>` : ""}
-        ${result.doctor_questions?.length ? `<p class="helper">就诊时可问：${result.doctor_questions.map(escapeHtml).join("；")}</p>` : ""}
+        ${result.key_findings?.length ? `<ul class="warning-list compact-list">${result.key_findings.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}
+        ${renderReportStandardTable(result.standard_comparison || [])}
+        ${renderReportCurveTable(result.curve_rows || [])}
+        ${renderReportDerived(result.derived_indicators || [])}
+        ${result.interpretation ? `<section class="report-section"><h4>专业解读</h4><p class="helper">${escapeHtml(result.interpretation)}</p></section>` : ""}
+        ${renderReportAdvice(result.professional_advice || result.action_suggestions || [], "专业建议")}
+        ${renderReportAdvice(result.doctor_questions || [], "就诊时可问")}
+        ${renderRawFields(result.fields || [])}
         <button class="secondary-button" type="button">确认无误，生成今日行动</button>
       </div>
     `;
@@ -405,6 +406,96 @@ function renderAnalysis(analysis) {
       <p class="helper">替换建议：${result.alternatives.join("；")}</p>
       <p class="helper">${result.boundary}</p>
     </div>
+  `;
+}
+
+function renderReportStandardTable(rows) {
+  if (!rows.length) return "";
+  return `
+    <section class="report-section">
+      <h4>标准对比</h4>
+      <div class="report-table-wrap">
+        <table class="report-table">
+          <thead><tr><th>指标</th><th>本次</th><th>标准/参考</th><th>判读</th></tr></thead>
+          <tbody>
+            ${rows
+              .map(
+                (row) => `
+                  <tr>
+                    <td>${escapeHtml(row.indicator)}</td>
+                    <td><strong>${escapeHtml(row.value)}</strong>${row.lab_reference ? `<small>实验室 ${escapeHtml(row.lab_reference)}</small>` : ""}</td>
+                    <td>${escapeHtml(row.standard)}<small>${escapeHtml(row.note || "")}</small></td>
+                    <td><span class="table-pill">${escapeHtml(row.judgement)}</span></td>
+                  </tr>
+                `,
+              )
+              .join("")}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  `;
+}
+
+function renderReportCurveTable(rows) {
+  if (!rows.length) return "";
+  return `
+    <section class="report-section">
+      <h4>曲线结构</h4>
+      <div class="report-table-wrap">
+        <table class="report-table curve-table">
+          <thead><tr><th>时间</th><th>血糖</th><th>胰岛素</th><th>C肽</th></tr></thead>
+          <tbody>
+            ${rows
+              .map(
+                (row) => `
+                  <tr>
+                    <td>${escapeHtml(row.time)}</td>
+                    <td>${escapeHtml(row.glucose || "-")}</td>
+                    <td>${escapeHtml(row.insulin || "-")}<small>${escapeHtml(row.insulin_ratio || "")}</small></td>
+                    <td>${escapeHtml(row.c_peptide || "-")}<small>${escapeHtml(row.c_peptide_ratio || "")}</small></td>
+                  </tr>
+                `,
+              )
+              .join("")}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  `;
+}
+
+function renderReportDerived(items) {
+  if (!items.length) return "";
+  return `
+    <section class="report-section">
+      <h4>计算指标</h4>
+      <div class="mini-metric-grid report-derived-grid">
+        ${items.map((item) => `<div><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.value)}</strong><small>${escapeHtml(item.note)}</small></div>`).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderReportAdvice(items, title) {
+  if (!items.length) return "";
+  return `
+    <section class="report-section">
+      <h4>${escapeHtml(title)}</h4>
+      <ul class="content-list">${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+    </section>
+  `;
+}
+
+function renderRawFields(fields) {
+  if (!fields.length) return "";
+  return `
+    <details class="raw-fields">
+      <summary>查看原始识别字段</summary>
+      <div class="field-table">
+        ${fields.map((field) => `<div><strong>${escapeHtml(field.label)}</strong><span>${escapeHtml(field.value)}<br><small>${escapeHtml(field.note)}</small></span></div>`).join("")}
+      </div>
+    </details>
   `;
 }
 
