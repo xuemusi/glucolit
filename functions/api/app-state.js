@@ -1,5 +1,6 @@
 import { content } from "../_lib/demo-data.js";
 import { ensureActions, ensureDailyState, ensureUser, recentAnalysis } from "../_lib/db.js";
+import { buildHealthProfile } from "../_lib/health-profile.js";
 import { badRequest, json, requiredDb } from "../_lib/http.js";
 
 export async function onRequestGet({ request, env }) {
@@ -26,6 +27,7 @@ export async function onRequestGet({ request, env }) {
     dailyState,
     actions,
     recentAnalysis: analysis,
+    healthProfile: buildHealthProfile(analysis),
     content,
   });
 }

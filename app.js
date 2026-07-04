@@ -161,6 +161,7 @@ function render() {
     home: renderHome,
     tools: renderTools,
     actions: renderActions,
+    profile: renderProfile,
     companion: renderCompanion,
     content: renderContent,
   };
@@ -452,6 +453,226 @@ function renderCompanion() {
       </div>
       ${boundary()}
     </section>
+  `;
+}
+
+function renderProfile() {
+  const profile = state.appState?.healthProfile;
+  if (!profile) return loadingMarkup();
+  const summary = profile.summary;
+  const latestExtraction = profile.latestReportExtraction;
+
+  return `
+    <section class="stack">
+      <div class="profile-hero">
+        <div class="hero-top">
+          <div>
+            <p class="eyebrow">我的健康档案 · ${escapeHtml(profile.source.review_date)}</p>
+            <h2>${escapeHtml(summary.label)}</h2>
+          </div>
+          <span class="status-pill completed">${escapeHtml(summary.phase)}</span>
+        </div>
+        <p class="profile-lead">${escapeHtml(summary.status)}</p>
+        <p class="helper">${escapeHtml(summary.mechanism)}</p>
+      </div>
+
+      <div class="profile-metric-grid">
+        ${profile.keyMetrics.map(renderProfileMetricCard).join("")}
+      </div>
+
+      <div class="card stack">
+        <div class="panel-header">
+          <h2>身体成分</h2>
+          <span class="tag">固定档案</span>
+        </div>
+        <div class="mini-metric-grid">
+          ${profile.bodyComposition.map((item) => `<div><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.value)} ${escapeHtml(item.unit)}</strong><small>${escapeHtml(item.note)}</small></div>`).join("")}
+        </div>
+      </div>
+
+      <div class="card stack">
+        <div class="panel-header">
+          <h2>OGTT 曲线对比</h2>
+          <span class="tag">基线 vs 复查</span>
+        </div>
+        ${renderOgttProfileChart(profile)}
+        <ul class="content-list">${profile.ogtt.shape.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+      </div>
+
+      ${latestExtraction ? renderLatestReportExtraction(latestExtraction) : ""}
+
+      <div class="card stack">
+        <div class="panel-header">
+          <h2>固定指标档案</h2>
+          <span class="tag">可由报告抽取</span>
+        </div>
+        ${profile.labGroups.map(renderProfileLabGroup).join("")}
+      </div>
+
+      <div class="card stack">
+        <div class="panel-header">
+          <h2>维护期优先级</h2>
+          <span class="tag">防回潮</span>
+        </div>
+        <div class="priority-list">${profile.watchPriorities.map(renderPriorityItem).join("")}</div>
+      </div>
+
+      <div class="card stack">
+        <div class="panel-header">
+          <h2>复查计划</h2>
+          <span class="tag">医生确认</span>
+        </div>
+        <div class="timeline-list">${profile.followUps.map(renderFollowUpItem).join("")}</div>
+      </div>
+
+      <div class="card stack">
+        <div class="panel-header">
+          <h2>监测目标</h2>
+          <span class="tag">趋势观察</span>
+        </div>
+        <div class="mini-metric-grid">
+          ${profile.monitoringTargets.map((item) => `<div><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.value)}</strong><small>按医生建议调整个人目标</small></div>`).join("")}
+        </div>
+      </div>
+
+      <div class="card stack">
+        <div class="panel-header">
+          <h2>档案时间线</h2>
+          <span class="tag">关键节点</span>
+        </div>
+        <div class="timeline-list">${profile.timeline.map(renderTimelineEvent).join("")}</div>
+      </div>
+
+      <div class="card stack">
+        <div class="panel-header">
+          <h2>我的行动清单</h2>
+          <button class="ghost-button" type="button" data-go="actions">去打卡</button>
+        </div>
+        <ul class="content-list">${profile.actionChecklist.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+      </div>
+
+      <div class="card">
+        <h2>后续要沉淀的字段</h2>
+        <div class="tag-row">${profile.fixedMetricSchema.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>
+      </div>
+      <p class="medical-boundary">${escapeHtml(summary.boundary)}</p>
+    </section>
+  `;
+}
+
+function renderProfileMetricCard(metric) {
+  return `
+    <div class="profile-metric-card">
+      <span>${escapeHtml(metric.label)}</span>
+      <strong>${escapeHtml(metric.latest)}<small>${escapeHtml(metric.unit)}</small></strong>
+      <p>${escapeHtml(metric.change)} · ${escapeHtml(metric.status)}</p>
+      <em>基线 ${escapeHtml(metric.baseline)}${escapeHtml(metric.unit)}</em>
+    </div>
+  `;
+}
+
+function renderOgttProfileChart(profile) {
+  const points = buildSparklinePoints(profile.ogtt.glucose.latest, 4.2, 9.8);
+  const baselinePoints = buildSparklinePoints(profile.ogtt.glucose.baseline, 4.2, 9.8);
+  return `
+    <div class="profile-chart" aria-label="复查 OGTT 葡萄糖曲线">
+      <svg viewBox="0 0 320 132" role="img">
+        <path class="profile-chart-band" d="M0 64 H320 V94 H0 Z"></path>
+        <polyline class="profile-chart-line baseline" points="${baselinePoints}"></polyline>
+        <polyline class="profile-chart-line latest" points="${points}"></polyline>
+      </svg>
+      <div class="profile-chart-legend">
+        <span><i class="latest"></i>复查葡萄糖</span>
+        <span><i class="baseline"></i>基线葡萄糖</span>
+      </div>
+      <div class="profile-time-row">${profile.ogtt.times.map((time) => `<span>${escapeHtml(time)}</span>`).join("")}</div>
+    </div>
+  `;
+}
+
+function buildSparklinePoints(values, min, max) {
+  const usableWidth = 284;
+  const left = 18;
+  const top = 16;
+  const height = 82;
+  const step = usableWidth / Math.max(values.length - 1, 1);
+  return values
+    .map((value, index) => {
+      const ratio = Math.max(0, Math.min(1, (Number(value) - min) / (max - min)));
+      const x = left + step * index;
+      const y = top + height - ratio * height;
+      return `${roundNumber(x)},${roundNumber(y)}`;
+    })
+    .join(" ");
+}
+
+function roundNumber(value) {
+  return Math.round(value * 10) / 10;
+}
+
+function renderLatestReportExtraction(extraction) {
+  return `
+    <div class="card stack">
+      <div class="panel-header">
+        <h2>最近报告抽取</h2>
+        <span class="tag">待校对</span>
+      </div>
+      <p class="muted">${escapeHtml(extraction.summary)}</p>
+      <div class="mini-metric-grid">
+        ${extraction.metrics.map((item) => `<div><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.value)} ${escapeHtml(item.unit)}</strong><small>${escapeHtml(item.note)}</small></div>`).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderProfileLabGroup(group) {
+  return `
+    <section class="profile-lab-group">
+      <h3>${escapeHtml(group.title)}</h3>
+      <div class="profile-lab-list">
+        ${group.items
+          .map(
+            (item) => `
+              <div>
+                <strong>${escapeHtml(item.label)}</strong>
+                <span>${escapeHtml(item.baseline)} → ${escapeHtml(item.latest)}</span>
+                <small>${escapeHtml(item.note)}</small>
+              </div>
+            `,
+          )
+          .join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderPriorityItem(item) {
+  return `
+    <div class="priority-item">
+      <strong>${escapeHtml(item.rank)}</strong>
+      <div>
+        <span>${escapeHtml(item.title)}</span>
+        <p>${escapeHtml(item.detail)}</p>
+      </div>
+    </div>
+  `;
+}
+
+function renderFollowUpItem(item) {
+  return `
+    <div class="timeline-item">
+      <strong>${escapeHtml(item.time)}</strong>
+      <p>${escapeHtml(item.detail)}</p>
+    </div>
+  `;
+}
+
+function renderTimelineEvent(item) {
+  return `
+    <div class="timeline-item">
+      <strong>${escapeHtml(item.date)} · ${escapeHtml(item.title)}</strong>
+      <p>${escapeHtml(item.detail)}</p>
+    </div>
   `;
 }
 

@@ -212,7 +212,15 @@ D1 数据库：`glucolit`
 
 ### 4.2 GET `/api/app-state?user_id=...`
 
-返回首页所需全部状态：用户、每日状态、行动、最近分析、内容卡片。
+返回首页所需全部状态：用户、每日状态、行动、最近分析、健康档案、内容卡片。
+
+`healthProfile` 当前为结构化种子档案，来源是用户提供的“我的健康档案”Markdown。后续可迁移到 D1：
+
+- `health_profiles`：长期档案摘要。
+- `health_metric_snapshots`：报告抽取后的指标快照。
+- `health_assessments`：阶段判断、风险优先级和随访计划。
+
+当前报告识别仍写入 `analysis_results`；“我的”页只读取最近一次报告里的 `result.ogtt` 作为待校对指标，不自动覆盖长期档案。
 
 ### 4.3 PATCH `/api/daily-state`
 
