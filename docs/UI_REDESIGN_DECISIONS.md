@@ -148,3 +148,19 @@ MVP 仍可使用样例结果，但视觉和文案不能像单纯按钮。
 - 信息结构：先展示 Apple Watch、CGM 传感器、体脂秤与血压计三类设备；Apple Watch 放在优先接入位，CGM 标记为预留接口，体脂秤/血压计标记为可手动同步。
 - 工程边界：当前为前端演示状态，接入/取消接入记录在 localStorage；真实授权链路后续再接 Apple Health、CGM 或手动录入 API。
 - 可访问性：浮窗按钮使用 `aria-expanded`，展开面板有 region 语义；持续动画只在用户未开启减少动态效果时播放。
+
+### 2026-07-04 移动端触控交互与可访问性全局优化
+
+- **发现问题**：
+  1. 移动端 H5 点击 `<a>` 标签时依然会出现系统默认的蓝色/灰色高亮背景，破坏视觉一致性。
+  2. 移除了系统默认高亮后，很多按钮（如 `.primary-button`、`.choice-button` 等）没有任何触控按下态的视觉反馈（`:active`），导致操作体验显得“死板”。
+  3. 部分按钮和链接的热区较小（如 `.back-button` 为 `36px`，`.text-link` 为 `34px`），不符合移动端至少 `44px` 的无障碍触控目标准则。
+  4. 部分卡片和设备按钮有 `:hover` 悬停样式，在触控屏上点击会引起“粘滞悬停”（Sticky Hover），体验不够平滑。
+- **决策**：进行全局触控交互规整，让 H5 应用的按压、悬停和点击面积达到原生 App 级品质。
+- **实施**：
+  - **高亮屏蔽**：将 `-webkit-tap-highlight-color: transparent` 作用范围扩大至 `button` 和 `a` 标签，全面解决默认触控阴影。
+  - **触控面积（Touch Target）**：将 `.primary-button` 等主流按钮、`.back-button`、`.ghost-button` 以及 `.text-link` 的 `min-height` 统一提升到 `44px`（或通过 `padding` 扩大热区），避免误触。
+  - **按下反馈（Active State）**：为所有核心交互按钮（`.primary-button`、`.tab-button`、`.choice-button`、`.back-button` 等）注入 `:active` 缩放或淡入淡出动画，为 `.action-card` 加上微量按压反馈。
+  - **粘滞悬停优化（Hover Query）**：将 `.action-card:hover`、`.device-row-new:hover`、`.device-close:hover` 等悬停动画包裹在 `@media (hover: hover)` 媒体查询中，避免在手机端产生点击后样式粘滞的问题。
+
+

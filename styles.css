@@ -53,8 +53,10 @@ input {
   font: inherit;
 }
 
-button {
+button,
+a {
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .app-frame {
@@ -648,9 +650,15 @@ button {
   transition: all 0.2s ease;
 }
 
-.device-close:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: rotate(90deg);
+@media (hover: hover) {
+  .device-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: rotate(90deg);
+  }
+}
+
+.device-close:active {
+  transform: scale(0.9);
 }
 
 /* 同步数据拟真动画区 */
@@ -903,10 +911,16 @@ button {
   transition: background 220ms, border-color 220ms, transform 220ms;
 }
 
-.device-row-new:hover:not(:disabled) {
-  transform: translateY(-1px);
-  border-color: rgba(255, 255, 255, 0.22);
-  background: rgba(255, 255, 255, 0.1);
+@media (hover: hover) {
+  .device-row-new:hover:not(:disabled) {
+    transform: translateY(-1px);
+    border-color: rgba(255, 255, 255, 0.22);
+    background: rgba(255, 255, 255, 0.1);
+  }
+}
+
+.device-row-new:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
 .device-row-new:disabled {
@@ -1304,13 +1318,23 @@ button {
 .secondary-button,
 .primary-button,
 .retry-button {
-  min-height: 42px;
+  min-height: 44px;
   border: 1px solid var(--line);
   border-radius: 15px;
   background: var(--surface);
   color: var(--ink);
   font-weight: 800;
   box-shadow: 0 6px 14px rgba(74, 101, 85, 0.07);
+  transition: transform 0.1s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.choice-button:active,
+.tab-button:active,
+.ghost-button:active,
+.secondary-button:active,
+.primary-button:active,
+.retry-button:active {
+  transform: scale(0.97);
 }
 
 .choice-button,
@@ -1337,9 +1361,9 @@ button {
 }
 
 .ghost-button {
-  min-height: 38px;
-  padding: 0 13px;
-  background: rgba(255, 253, 247, 0.8);
+  min-height: 42px;
+  padding: 0 16px;
+  background: rgba(255, 255, 255, 0.8);
   color: var(--teal);
 }
 
@@ -2514,8 +2538,14 @@ button {
   font-size: 1rem;
 }
 
-.action-card:hover {
-  transform: translateY(-1px);
+@media (hover: hover) {
+  .action-card:hover {
+    transform: translateY(-1px);
+  }
+}
+
+.action-card:active {
+  transform: translateY(1px);
 }
 
 .action-card.primary-action {
@@ -2743,16 +2773,22 @@ button {
 
 .text-link {
   display: inline-flex;
-  min-height: 34px;
+  min-height: 44px;
   align-items: center;
-  margin-top: 12px;
+  margin-top: 6px;
   border: 0;
   background: transparent;
   color: var(--teal-strong);
-  padding: 0;
+  padding: 0 8px;
+  margin-left: -8px;
   font-size: 0.84rem;
   font-weight: 800;
   text-decoration: none;
+  transition: opacity 0.1s ease;
+}
+
+.text-link:active {
+  opacity: 0.65;
 }
 
 .secondary-link {
@@ -2778,13 +2814,18 @@ button {
 
 .back-button {
   justify-self: start;
-  min-height: 36px;
+  min-height: 44px;
   border: 1px solid var(--line);
   border-radius: 15px;
   background: white;
   color: var(--teal-strong);
-  padding: 0 12px;
+  padding: 0 16px;
   font-weight: 800;
+  transition: transform 0.1s ease;
+}
+
+.back-button:active {
+  transform: scale(0.96);
 }
 
 .link-button {
@@ -3161,6 +3202,11 @@ button {
   color: var(--muted);
   font-size: 0.82rem;
   font-weight: 800;
+  transition: transform 0.1s ease;
+}
+
+.nav-button:active {
+  transform: scale(0.96);
 }
 
 .nav-button.active {
