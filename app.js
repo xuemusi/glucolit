@@ -1370,7 +1370,7 @@ function renderProfile() {
           <span class="tag">前后对比</span>
         </div>
         ${renderOgttProfileChart(profile)}
-        <p class="profile-chart-copy">2 小时回落变快，是这次最重要的好变化；后续继续看复查趋势是否稳定。</p>
+        <p class="profile-chart-copy">2 小时回落变快，是这次很关键的好变化；后续继续看复查趋势是否稳定。</p>
         <ul class="content-list">${profile.ogtt.shape.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
       </div>
 
@@ -1694,7 +1694,7 @@ function renderGuideDetail(guide) {
       <ul class="content-list">
         <li>先读核心概念：${guide.summary}</li>
         <li>再选一个观察指标：${keywords[0] || "餐后反应"}，连续记录 1-2 周。</li>
-        <li>最后只改一个变量：${keywords[1] || "饮食、运动或睡眠"}，观察趋势变化。</li>
+        <li>一次只改一个变量：${keywords[1] || "饮食、运动或睡眠"}，观察趋势变化。</li>
       </ul>
     </div>
   `;
