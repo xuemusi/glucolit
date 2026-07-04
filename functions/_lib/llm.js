@@ -1,7 +1,17 @@
 import { analysisSamples } from "./demo-data.js";
 import { findNutritionMatches, nutritionKnowledgeVersion } from "./nutrition-knowledge.js";
 
-const forbiddenTerms = ["治愈", "逆转", "保证降低血糖", "建议吃药", "停药", "不能吃", "必须吃"];
+const forbiddenTerms = ["治愈", "逆转", "保证降低血糖", "建议吃药", "停药", "不能吃", "必须吃", "治疗作用", "辅助降糖", "降糖效果", "降糖作用"];
+const labelKnowledgeVersion = "label-rules-20260704";
+
+const labelIngredientKnowledge = {
+  addedSugar: ["白砂糖", "蔗糖", "果葡糖浆", "果糖", "葡萄糖浆", "麦芽糖浆", "蜂蜜", "浓缩果汁", "红糖", "冰糖", "糖浆"],
+  refinedCarb: ["小麦粉", "精制小麦粉", "糯米粉", "淀粉", "麦芽糊精", "植脂末", "饼干粉"],
+  sweetener: ["赤藓糖醇", "三氯蔗糖", "安赛蜜", "阿斯巴甜", "甜菊糖苷", "木糖醇", "山梨糖醇"],
+  saturatedFat: ["起酥油", "氢化植物油", "代可可脂", "植脂末", "奶油", "黄油", "棕榈油", "椰子油"],
+  protein: ["乳清蛋白", "牛奶", "酸奶", "鸡蛋", "大豆蛋白", "豆粉", "鱼肉", "鸡胸肉"],
+  fiber: ["膳食纤维", "菊粉", "抗性糊精", "燕麦", "全麦", "藜麦", "魔芋粉"],
+};
 
 export async function analyzeWithModel({ env, type, photoName, imageData, mimeType }) {
   const apiKey = env.TOKENDANCE_API_KEY;
@@ -14,6 +24,9 @@ export async function analyzeWithModel({ env, type, photoName, imageData, mimeTy
   }
   if (shouldUseStructuredMeal(type, imageData, mimeType)) {
     return analyzeMealWithStructuredPipeline({ env, photoName, imageData, mimeType });
+  }
+  if (shouldUseStructuredLabel(type, imageData, mimeType)) {
+    return analyzeLabelWithStructuredPipeline({ env, photoName, imageData, mimeType });
   }
 
   const baseUrl = env.TOKENDANCE_BASE_URL || "https://tokendance.space/gateway/v1";
@@ -62,6 +75,9 @@ export async function analyzeWithModelStream({ env, type, photoName, imageData, 
   }
   if (shouldUseStructuredMeal(type, imageData, mimeType)) {
     return analyzeMealWithStructuredPipeline({ env, photoName, imageData, mimeType, onContent });
+  }
+  if (shouldUseStructuredLabel(type, imageData, mimeType)) {
+    return analyzeLabelWithStructuredPipeline({ env, photoName, imageData, mimeType, onContent });
   }
 
   const baseUrl = env.TOKENDANCE_BASE_URL || "https://tokendance.space/gateway/v1";
@@ -151,6 +167,10 @@ function shouldUseStructuredReport(type, imageData, mimeType) {
 
 function shouldUseStructuredMeal(type, imageData, mimeType) {
   return type === "meal" && Boolean(imageData && mimeType);
+}
+
+function shouldUseStructuredLabel(type, imageData, mimeType) {
+  return type === "label" && Boolean(imageData && mimeType);
 }
 
 async function analyzeReportWithStructuredPipeline({ env, photoName, imageData, mimeType, onContent }) {
@@ -249,6 +269,68 @@ async function analyzeMealWithStructuredPipeline({ env, photoName, imageData, mi
   };
 }
 
+async function analyzeLabelWithStructuredPipeline({ env, photoName, imageData, mimeType, onContent }) {
+  const sample = analysisSamples.label;
+  const baseUrl = env.TOKENDANCE_BASE_URL || "https://tokendance.space/gateway/v1";
+  const model = env.TOKENDANCE_MODEL || "kimi-k2.6";
+  const ocrModel = env.TOKENDANCE_OCR_MODEL || "qwen3-vl-plus";
+  const thinkingEnabled = envFlag(env.TOKENDANCE_THINKING_ENABLED, false);
+
+  await onContent?.("正在识别配料顺序、添加糖和营养成分表...\n");
+  const ocrPayload = await requestChatJson({
+    env,
+    baseUrl,
+    model: ocrModel,
+    thinkingEnabled,
+    temperature: 0,
+    maxTokens: 1600,
+    messages: buildLabelOcrMessages({ photoName, imageData, mimeType }),
+  });
+  const labelOcr = normalizeLabelOcr(ocrPayload);
+  if (!labelOcr.ingredients.length && !Object.keys(labelOcr.nutrition_per_100).length) {
+    throw new Error("Label OCR did not return ingredients or nutrition facts");
+  }
+
+  const rules = buildLabelRules(labelOcr);
+  await onContent?.("已完成添加糖、碳水、钠和配料复杂度判断，正在整理购买建议...\n");
+
+  const useExternalNarrative = Boolean(
+    (env.LABEL_NARRATIVE_BASE_URL || env.REPORT_NARRATIVE_BASE_URL) &&
+      (env.LABEL_NARRATIVE_API_KEY || env.REPORT_NARRATIVE_API_KEY),
+  );
+  const narrativeBaseUrl = useExternalNarrative ? env.LABEL_NARRATIVE_BASE_URL || env.REPORT_NARRATIVE_BASE_URL : baseUrl;
+  const narrativeModel = useExternalNarrative ? env.LABEL_NARRATIVE_MODEL || "gpt-5.4-mini" : model;
+  const narrativeApiKey = useExternalNarrative ? env.LABEL_NARRATIVE_API_KEY || env.REPORT_NARRATIVE_API_KEY : env.TOKENDANCE_API_KEY;
+  let narrativePayload;
+  let narrativeModelLabel = narrativeModel;
+
+  try {
+    narrativePayload = await requestChatJson({
+      env,
+      baseUrl: narrativeBaseUrl,
+      apiKey: narrativeApiKey,
+      model: narrativeModel,
+      thinkingEnabled: useExternalNarrative ? false : thinkingEnabled,
+      includeThinking: !useExternalNarrative,
+      temperature: 0.1,
+      maxTokens: 1600,
+      messages: buildLabelNarrativeMessages({ labelOcr, rules }),
+    });
+  } catch (error) {
+    narrativePayload = buildLabelRuleNarrative(rules);
+    narrativeModelLabel = `${narrativeModel} failed, rules fallback`;
+  }
+
+  const normalized = normalizeStructuredLabel(narrativePayload, labelOcr, rules, sample);
+  assertSafeCopy(normalized);
+  await onContent?.(`${normalized.summary}\n`);
+
+  return {
+    ...normalized,
+    model: `${ocrModel} label OCR + ${narrativeModelLabel}`,
+  };
+}
+
 async function requestChatJson({ env, baseUrl, apiKey = env.TOKENDANCE_API_KEY, model, thinkingEnabled, includeThinking = true, temperature, maxTokens, messages }) {
   const requestBody = {
     model,
@@ -324,6 +406,33 @@ function buildMealVisionMessages({ photoName, imageData, mimeType }) {
     {
       role: "system",
       content: "你是严谨的餐盘视觉识别引擎。只输出 JSON 对象。",
+    },
+    {
+      role: "user",
+      content: [
+        { type: "text", text: prompt },
+        { type: "image_url", image_url: { url: `data:${mimeType};base64,${imageData}` } },
+      ],
+    },
+  ];
+}
+
+function buildLabelOcrMessages({ photoName, imageData, mimeType }) {
+  const prompt = [
+    "你只做食品包装配料表 OCR 和营养成分表抽取，不做购买建议。",
+    photoName ? `文件名：${photoName}` : "",
+    "请按图片原文识别产品名、产品分类、配料顺序、营养成分表和显著声称。",
+    "只输出严格 JSON：",
+    `{"product_name":"","category":"","ingredients":[{"rank":1,"name":"","raw":"","role":"base|plant|added_sugar|sweetener|refined_carb|fat|protein|fiber|vitamin_mineral|additive|unknown"}],"nutrition_per_100":{"basis":"100ml|100g|serving|unknown","energy_kj":number|null,"protein_g":number|null,"fat_g":number|null,"carbohydrate_g":number|null,"sugar_g":number|null,"fiber_g":number|null,"sodium_mg":number|null},"claims":[],"notes":[]}`,
+    "不要补不存在的数据；营养表没看到的字段填 null。不要 Markdown。不要解释。",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return [
+    {
+      role: "system",
+      content: "你是严谨的食品标签 OCR 引擎。只输出 JSON 对象。",
     },
     {
       role: "user",
@@ -834,6 +943,314 @@ function fallbackMealSwaps(rules) {
     swaps.unshift("这是共享餐桌估计，记录时请按自己实际吃掉的份量调整。");
   }
   return swaps;
+}
+
+function normalizeLabelOcr(payload) {
+  const nutrition = payload?.nutrition_per_100 && typeof payload.nutrition_per_100 === "object" ? payload.nutrition_per_100 : {};
+  return {
+    product_name: cleanText(payload?.product_name) || "食品配料表",
+    category: cleanText(payload?.category) || "未识别",
+    ingredients: Array.isArray(payload?.ingredients)
+      ? payload.ingredients
+          .map((item, index) => ({
+            rank: Number.isFinite(Number(item.rank)) ? Number(item.rank) : index + 1,
+            name: cleanText(item.name || item.raw),
+            raw: cleanText(item.raw || item.name),
+            role: normalizeIngredientRole(item.role, item.name || item.raw),
+          }))
+          .filter((item) => item.name)
+          .sort((a, b) => a.rank - b.rank)
+      : [],
+    nutrition_per_100: {
+      basis: ["100ml", "100g", "serving", "unknown"].includes(nutrition.basis) ? nutrition.basis : "unknown",
+      energy_kj: numericOrNull(nutrition.energy_kj),
+      protein_g: numericOrNull(nutrition.protein_g),
+      fat_g: numericOrNull(nutrition.fat_g),
+      carbohydrate_g: numericOrNull(nutrition.carbohydrate_g),
+      sugar_g: numericOrNull(nutrition.sugar_g),
+      fiber_g: numericOrNull(nutrition.fiber_g),
+      sodium_mg: numericOrNull(nutrition.sodium_mg),
+    },
+    claims: toTextArray(payload?.claims),
+    notes: toTextArray(payload?.notes),
+  };
+}
+
+function normalizeIngredientRole(role, name) {
+  const value = cleanText(role);
+  if (["base", "plant", "added_sugar", "sweetener", "refined_carb", "fat", "protein", "fiber", "vitamin_mineral", "additive"].includes(value)) {
+    return value;
+  }
+  if (matchesAny(name, labelIngredientKnowledge.addedSugar)) return "added_sugar";
+  if (matchesAny(name, labelIngredientKnowledge.refinedCarb)) return "refined_carb";
+  if (matchesAny(name, labelIngredientKnowledge.sweetener)) return "sweetener";
+  if (matchesAny(name, labelIngredientKnowledge.saturatedFat)) return "fat";
+  if (matchesAny(name, labelIngredientKnowledge.protein)) return "protein";
+  if (matchesAny(name, labelIngredientKnowledge.fiber)) return "fiber";
+  if (/维生素|矿物质|钙|铁|锌|钠/i.test(name || "")) return "vitamin_mineral";
+  if (/酸钠|碳酸|色素|香精|防腐|稳定剂|乳化剂/i.test(name || "")) return "additive";
+  if (/叶|花|草|茶|果|植物/i.test(name || "")) return "plant";
+  return "unknown";
+}
+
+function buildLabelRules(labelOcr) {
+  const ingredients = labelOcr.ingredients;
+  const nutrition = labelOcr.nutrition_per_100;
+  const sugarHits = findIngredientHits(ingredients, labelIngredientKnowledge.addedSugar);
+  const refinedHits = findIngredientHits(ingredients, labelIngredientKnowledge.refinedCarb);
+  const sweetenerHits = findIngredientHits(ingredients, labelIngredientKnowledge.sweetener);
+  const fatHits = findIngredientHits(ingredients, labelIngredientKnowledge.saturatedFat);
+  const fiberHits = findIngredientHits(ingredients, labelIngredientKnowledge.fiber);
+  const proteinHits = findIngredientHits(ingredients, labelIngredientKnowledge.protein);
+  const additiveItems = ingredients.filter((item) => item.role === "additive" || item.role === "vitamin_mineral");
+  const sugar = nutrition.sugar_g;
+  const carbs = nutrition.carbohydrate_g;
+  const energy = nutrition.energy_kj;
+  const sodium = nutrition.sodium_mg;
+  const basis = nutrition.basis === "100ml" ? "100ml" : nutrition.basis === "100g" ? "100g" : "每份/未标明";
+  const isDrink = /饮料|水|茶|咖啡|奶|汁/i.test(`${labelOcr.product_name}${labelOcr.category}`) || nutrition.basis === "100ml";
+
+  const positives = [];
+  const concerns = [];
+  const trafficLights = [];
+  let riskScore = 0;
+
+  if (!sugarHits.length) positives.push("配料表未见白砂糖、果葡糖浆、蜂蜜等添加糖。");
+  if (Number.isFinite(sugar) && sugar === 0) positives.push(`${basis} 糖 0g，比含糖饮料或甜点更适合作为控糖替代。`);
+  if (Number.isFinite(carbs) && carbs === 0) positives.push(`${basis} 碳水化合物 0g，餐后血糖负担很低。`);
+  if (Number.isFinite(energy) && energy === 0) positives.push(`${basis} 能量 0kJ，不会额外增加能量摄入。`);
+  if (Number.isFinite(sodium) && sodium <= 120) positives.push(`${basis} 钠 ${sodium}mg，钠负担较低。`);
+  if (fiberHits.length) positives.push(`配料中看到 ${fiberHits.map((item) => item.name).join("、")}，对饱腹感更友好。`);
+  if (proteinHits.length) positives.push(`配料中看到 ${proteinHits.map((item) => item.name).join("、")}，蛋白质来源更明确。`);
+
+  if (sugarHits.length) {
+    const firstSugar = Math.min(...sugarHits.map((item) => item.rank));
+    riskScore += firstSugar <= 3 ? 4 : 2;
+    concerns.push(`添加糖相关配料出现在第 ${firstSugar} 位附近，越靠前越需要少买少吃。`);
+  }
+  if (Number.isFinite(sugar) && sugar >= (isDrink ? 5 : 10)) {
+    riskScore += 4;
+    concerns.push(`${basis} 糖 ${sugar}g，属于餐后波动重点关注项。`);
+  }
+  if (Number.isFinite(carbs) && carbs >= (isDrink ? 8 : 20)) {
+    riskScore += 2;
+    concerns.push(`${basis} 碳水 ${carbs}g，需要结合份量和进食场景控制。`);
+  }
+  if (refinedHits.length) {
+    riskScore += 2;
+    concerns.push(`含 ${refinedHits.map((item) => item.name).join("、")} 等精制碳水来源，饱腹感和餐后稳定性通常不如全谷物。`);
+  }
+  if (fatHits.length) {
+    riskScore += 2;
+    concerns.push(`含 ${fatHits.map((item) => item.name).join("、")}，需要关注饱和脂肪或反式脂肪风险。`);
+  }
+  if (Number.isFinite(sodium) && sodium > (isDrink ? 120 : 300)) {
+    riskScore += sodium > 600 ? 3 : 1;
+    concerns.push(`${basis} 钠 ${sodium}mg，钠摄入需要留意。`);
+  }
+  if (sweetenerHits.length) concerns.push(`含 ${sweetenerHits.map((item) => item.name).join("、")} 等甜味剂，可替代糖，但不建议因此放大饮用量。`);
+  if (additiveItems.length) concerns.push(`含 ${additiveItems.map((item) => item.name).slice(0, 4).join("、")} 等功能或添加成分，不等于有控糖功效。`);
+  if (!proteinHits.length && (!Number.isFinite(nutrition.protein_g) || nutrition.protein_g === 0)) concerns.push("蛋白质不突出，不能当作有饱腹感的加餐。");
+  if (!fiberHits.length && (!Number.isFinite(nutrition.fiber_g) || nutrition.fiber_g === 0)) concerns.push("膳食纤维不突出，对延缓吸收的帮助有限。");
+
+  trafficLights.push(buildLabelTraffic("添加糖", sugarHits.length ? sugarHits.map((item) => item.name).join("、") : "配料表未见", sugarHits.length ? "bad" : "good", sugarHits.length ? "添加糖越靠前越不适合常买。" : "优于含糖饮料、糖果和甜点。"));
+  trafficLights.push(buildLabelTraffic("糖/碳水", nutritionValueText(sugar, "g 糖", basis, carbs, "g 碳水"), metricStatus("sugar_carb", Math.max(sugar || 0, carbs || 0), isDrink), "看营养成分表，不只看正面宣传。"));
+  trafficLights.push(buildLabelTraffic("钠", Number.isFinite(sodium) ? `${basis} ${sodium}mg` : "未识别", metricStatus("sodium", sodium, isDrink), "饮料钠通常不应成为主要负担。"));
+  trafficLights.push(buildLabelTraffic("饱腹营养", proteinHits.length || fiberHits.length ? [...proteinHits, ...fiberHits].map((item) => item.name).join("、") : "蛋白质/膳食纤维不突出", proteinHits.length || fiberHits.length ? "good" : "watch", "加餐更看重蛋白质和膳食纤维。"));
+  trafficLights.push(buildLabelTraffic("配料复杂度", ingredients.length ? `${ingredients.length} 项配料` : "未识别", additiveItems.length || sweetenerHits.length ? "watch" : "good", "草本/功能成分不等于控糖功效或医疗效果。"));
+
+  let purchaseLabel = "适合常买";
+  let purchaseAdvice = "更适合";
+  if (riskScore >= 4) {
+    purchaseLabel = "不建议常买";
+    purchaseAdvice = "建议替换";
+  } else if (riskScore >= 2 || concerns.length > positives.length + 1) {
+    purchaseLabel = "偶尔少量";
+    purchaseAdvice = "需控制";
+  }
+
+  return {
+    product_name: labelOcr.product_name,
+    category: labelOcr.category,
+    purchase_label: purchaseLabel,
+    purchaseAdvice,
+    riskScore,
+    basis,
+    positives: positives.slice(0, 5),
+    concerns: dedupeText(concerns).slice(0, 6),
+    traffic_lights: trafficLights,
+    alternatives: fallbackLabelAlternatives(labelOcr, riskScore),
+    use_tips: fallbackLabelUseTips(labelOcr, purchaseLabel, isDrink),
+    boundary: buildLabelBoundary(labelOcr, purchaseLabel),
+    ocr: labelOcr,
+    knowledge_version: `${labelKnowledgeVersion}+${nutritionKnowledgeVersion}`,
+  };
+}
+
+function buildLabelNarrativeMessages({ labelOcr, rules }) {
+  const prompt = [
+    "下面是食品标签 OCR 和后端规则判断。请只基于这些数据生成糖尿病前期用户能看懂的购买建议。",
+    "要求：不要说治疗、降糖、逆转；不要说完全不会引起血糖波动；植物成分只能作为配料事实，不得宣传功效。",
+    "输出严格 JSON：",
+    `{"title":"","summary":"","purchase_label":"适合常买|偶尔少量|不建议常买","positives":[],"concerns":[],"use_tips":[],"alternatives":[],"boundary":""}`,
+    `OCR=${JSON.stringify(labelOcr)}`,
+    `RULES=${JSON.stringify(rules)}`,
+  ].join("\n");
+  return [
+    {
+      role: "system",
+      content: "你是糖尿病前期生活方式食品标签分析助手。只输出 JSON 对象，建议要克制、可执行、避免医疗承诺。",
+    },
+    { role: "user", content: prompt },
+  ];
+}
+
+function normalizeStructuredLabel(parsed, labelOcr, rules, sample) {
+  const purchaseLabel = ["适合常买", "偶尔少量", "不建议常买"].includes(parsed.purchase_label) ? parsed.purchase_label : rules.purchase_label;
+  const purchaseAdvice = parsed.purchaseAdvice || rules.purchaseAdvice || labelAdviceFromLabel(purchaseLabel);
+  const positives = labelTextArray(parsed.positives).length ? labelTextArray(parsed.positives) : rules.positives;
+  const concerns = labelTextArray(parsed.concerns).length ? labelTextArray(parsed.concerns) : rules.concerns;
+  const useTips = labelTextArray(parsed.use_tips).length ? labelTextArray(parsed.use_tips) : rules.use_tips;
+  const alternatives = labelTextArray(parsed.alternatives).length ? labelTextArray(parsed.alternatives) : rules.alternatives;
+  const title = sanitizeLabelCopy(parsed.title) || `${rules.product_name}配料表分析`;
+  const summary = sanitizeLabelCopy(parsed.summary) || buildLabelRuleSummary(rules);
+  const boundary = sanitizeLabelCopy(parsed.boundary) || rules.boundary;
+
+  return {
+    title,
+    summary,
+    risk_level: purchaseLabel === "不建议常买" ? "orange" : purchaseLabel === "偶尔少量" ? "yellow" : "green",
+    confidence: "high",
+    result: {
+      purchaseAdvice,
+      purchase_label: purchaseLabel,
+      score: rules.riskScore,
+      product: {
+        name: rules.product_name,
+        category: rules.category,
+      },
+      ingredients: labelOcr.ingredients,
+      nutrition: labelOcr.nutrition_per_100,
+      traffic_lights: rules.traffic_lights,
+      positives: positives.slice(0, 5),
+      concerns: dedupeText(concerns).slice(0, 6),
+      use_tips: useTips.slice(0, 5),
+      reasons: dedupeText(concerns.length ? concerns : positives).slice(0, 4),
+      alternatives: alternatives.slice(0, 5),
+      boundary,
+      knowledge_version: rules.knowledge_version,
+      medical_boundary: "配料表分析用于购物和加餐选择参考，不替代医生或营养师的个体化建议。",
+      ai_source: "structured_label_pipeline",
+    },
+  };
+}
+
+function buildLabelRuleNarrative(rules) {
+  return {
+    title: `${rules.product_name}配料表分析`,
+    summary: buildLabelRuleSummary(rules),
+    purchase_label: rules.purchase_label,
+    positives: rules.positives,
+    concerns: rules.concerns,
+    use_tips: rules.use_tips,
+    alternatives: rules.alternatives,
+    boundary: rules.boundary,
+  };
+}
+
+function labelTextArray(value) {
+  return toTextArray(value).map(sanitizeLabelCopy).filter(Boolean);
+}
+
+function sanitizeLabelCopy(value) {
+  return cleanText(value)
+    .replace(/完全不会引起血糖波动/g, "餐后血糖负担较低")
+    .replace(/不会引起血糖波动/g, "餐后血糖负担较低")
+    .replace(/治疗作用|降糖效果|降糖作用|辅助降糖/g, "控糖功效")
+    .replace(/治疗或降糖/g, "控糖");
+}
+
+function buildLabelRuleSummary(rules) {
+  if (rules.purchase_label === "适合常买") {
+    return "这款食品的添加糖和糖/碳水负担较低，可作为更稳的替代选择；但不要把功能配料理解为控糖功效。";
+  }
+  if (rules.purchase_label === "偶尔少量") {
+    return "这款食品有部分需要留意的配料或营养成分，更适合偶尔少量，不建议作为每天固定加餐。";
+  }
+  return "这款食品存在较明确的添加糖、精制碳水或高钠/高脂信号，不建议常买，建议换成更低糖、更高蛋白或更高纤维的选择。";
+}
+
+function fallbackLabelAlternatives(labelOcr, riskScore) {
+  const isDrink = /饮料|水|茶|汁|奶/i.test(`${labelOcr.product_name}${labelOcr.category}`);
+  if (riskScore >= 4) {
+    return isDrink ? ["无糖茶或白水", "无糖气泡水", "原味无糖酸奶"] : ["原味坚果小把", "无糖酸奶", "鸡蛋/豆制品等高蛋白加餐"];
+  }
+  return isDrink ? ["白水和淡茶仍放在第一位", "想喝饮料时优先选 0 糖 0 能量款"] : ["优先选短配料表、低糖、高蛋白或高纤维版本"];
+}
+
+function fallbackLabelUseTips(labelOcr, purchaseLabel, isDrink) {
+  if (purchaseLabel === "适合常买") {
+    return isDrink
+      ? ["可以替代含糖饮料，但日常补水仍以白水为主。", "不要因为 0 糖 0 能量就长期大量替代饮水。", "肠胃敏感时避免空腹大量饮用。"]
+      : ["可以作为更稳的加餐选择，但仍按包装份量控制。"];
+  }
+  if (purchaseLabel === "偶尔少量") return ["更适合放在正餐后少量吃，避免空腹当加餐。", "吃完观察个人餐后反应，不作为每天固定选择。"];
+  return ["不作为常备零食或饮料。", "已经买了也尽量小份量、随餐、少频次。"];
+}
+
+function buildLabelBoundary(labelOcr, purchaseLabel) {
+  if (purchaseLabel === "适合常买") return "可以作为含糖饮料或高糖零食的替代，但不代表有控糖功效或医疗效果。";
+  if (purchaseLabel === "偶尔少量") return "偶尔少量可以，尽量不要作为每日固定加餐或夜间零食。";
+  return "不建议常买；如已经购买，建议小份量、低频次，并优先替换为无糖、高蛋白或高纤维选择。";
+}
+
+function buildLabelTraffic(label, value, status, note) {
+  return { label, value, status, note };
+}
+
+function nutritionValueText(primary, primaryUnit, basis, secondary, secondaryUnit) {
+  const main = Number.isFinite(primary) ? `${basis} ${primary}${primaryUnit}` : "未识别";
+  if (!Number.isFinite(secondary)) return main;
+  return `${main} / ${secondary}${secondaryUnit}`;
+}
+
+function metricStatus(type, value, isDrink) {
+  if (!Number.isFinite(value)) return "watch";
+  if (type === "sugar_carb") {
+    if (value === 0) return "good";
+    if (value >= (isDrink ? 5 : 10)) return "bad";
+    return "watch";
+  }
+  if (type === "sodium") {
+    if (value <= (isDrink ? 120 : 300)) return "good";
+    if (value > (isDrink ? 240 : 600)) return "bad";
+    return "watch";
+  }
+  return "watch";
+}
+
+function labelAdviceFromLabel(label) {
+  if (label === "适合常买") return "更适合";
+  if (label === "不建议常买") return "建议替换";
+  return "需控制";
+}
+
+function findIngredientHits(ingredients, terms) {
+  return ingredients.filter((item) => matchesAny(item.name, terms) || matchesAny(item.raw, terms));
+}
+
+function matchesAny(value, terms) {
+  const text = cleanText(value).toLowerCase();
+  return terms.some((term) => text.includes(term.toLowerCase()));
+}
+
+function numericOrNull(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function dedupeText(items) {
+  return [...new Set(toTextArray(items))];
 }
 
 function buildReportFields(rows, rules) {
