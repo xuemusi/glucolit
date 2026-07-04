@@ -409,7 +409,7 @@ function renderMealAnalysis(analysis, sourceLabel) {
       <p class="meal-summary">${highlightMealText(analysis.summary)}</p>
       ${renderMealPlate(result.plate)}
       ${renderMealInsights(result.observations || [])}
-      ${renderMealNutritionCards(result.nutrition_notes || [])}
+      ${renderMealNutritionCards(result.nutrition_refs || [], result.nutrition_notes || [])}
       ${renderMealActionSection("建议吃法", result.meal_order || [])}
       ${renderMealActionSection("替换建议", result.swaps || [])}
       <p class="meal-source">${escapeHtml(sourceLabel)} · 图片估计结果请按实际摄入量确认</p>
@@ -456,42 +456,151 @@ function renderMealInsights(items) {
   `;
 }
 
-function renderMealNutritionCards(notes) {
-  if (!notes.length) return "";
+function renderMealNutritionCards(refs, fallbackNotes) {
+  const cards = buildMealNutritionCards(refs, fallbackNotes);
+  if (!cards.length) return "";
   return `
     <section class="meal-section">
-      <h4>GI / GL / II 参考</h4>
+      <h4>GI / GL / 营养素参考</h4>
       <div class="meal-nutrition-grid">
-        ${notes.map(renderMealNutritionCard).join("")}
+        ${cards.map(renderMealNutritionCard).join("")}
       </div>
     </section>
   `;
 }
 
-function renderMealNutritionCard(note) {
-  const parsed = parseNutritionNote(note);
+function renderMealNutritionCard(card) {
   return `
-    <article class="meal-nutrition-card ${mealSeverity(note).className}">
+    <article class="meal-nutrition-card ${card.severity}">
       <div class="meal-nutrition-title">
-        <strong>${escapeHtml(parsed.title)}</strong>
-        <span>${escapeHtml(parsed.badge)}</span>
+        <strong>${escapeHtml(card.title)}</strong>
+        <span>${escapeHtml(card.badge)}</span>
       </div>
-      ${parsed.metrics.length ? `<div class="meal-metric-row">${parsed.metrics.map((metric) => `<em class="${metric.tone}">${escapeHtml(metric.label)} ${escapeHtml(metric.value)}</em>`).join("")}</div>` : ""}
-      <p>${highlightMealText(parsed.detail)}</p>
+      <div class="meal-metric-row">${card.metrics.map((metric) => `<em class="${metric.tone}">${escapeHtml(metric.label)} ${escapeHtml(metric.value)}</em>`).join("")}</div>
+      <p>${highlightMealText(card.detail)}</p>
     </article>
   `;
 }
 
-function parseNutritionNote(note) {
-  const [rawTitle, ...rest] = String(note).split(/[：:]/);
-  const detail = rest.join("：") || String(note);
-  const metrics = [...String(note).matchAll(/\b(GI|GL|II)\s*([0-9.]+)/g)].map((match) => {
-    const label = match[1];
-    const value = match[2];
-    return { label, value, tone: mealMetricTone(label, Number(value)) };
+function buildMealNutritionCards(refs, fallbackNotes) {
+  if (Array.isArray(refs) && refs.length && typeof refs[0] === "object") {
+    const groups = new Map();
+    refs.forEach((ref) => {
+      const title = cleanMealItemTitle(ref.item || ref.food || "食物参考");
+      if (!groups.has(title)) groups.set(title, []);
+      groups.get(title).push(ref);
+    });
+    return [...groups.entries()].map(([title, items]) => buildStructuredNutritionCard(title, items));
+  }
+  return groupFallbackNutritionNotes(fallbackNotes || []);
+}
+
+function buildStructuredNutritionCard(title, refs) {
+  const giValues = uniqueValues(refs.map((ref) => ref.gi));
+  const glValues = uniqueValues(refs.map((ref) => ref.gl));
+  const nutrients = uniqueValues(refs.map((ref) => nutrientLabel(ref.group)));
+  const foods = uniqueValues(refs.map((ref) => ref.food));
+  const severity = refs.some((ref) => ref.glLevel === "high" || /汤汁|油脂|加速|偏高|高/.test(ref.note || ""))
+    ? "danger"
+    : refs.some((ref) => ref.glLevel === "medium")
+      ? "warn"
+      : "good";
+  const badge = severity === "danger" ? "重点关注" : severity === "warn" ? "适量观察" : "较稳";
+  const detailNotes = uniqueValues(refs.map((ref) => cleanNutritionNote(ref.note))).filter(Boolean);
+  return {
+    title,
+    badge,
+    severity,
+    metrics: [
+      { label: "GI", value: displayValues(giValues), tone: aggregateMetricTone("GI", giValues) },
+      { label: "GL", value: displayValues(glValues), tone: aggregateMetricTone("GL", glValues) },
+      { label: "营养素", value: nutrients.join("+") || "参考", tone: severity === "danger" ? "warn" : "good" },
+    ],
+    detail: `参考：${foods.join("、")}。${detailNotes.join("；") || "按同类食物估算，结合实际摄入量确认。"}`
+  };
+}
+
+function groupFallbackNutritionNotes(notes) {
+  const groups = new Map();
+  notes.forEach((note) => {
+    const [rawTitle] = String(note).split(/[：:]/);
+    const title = cleanMealItemTitle(rawTitle);
+    if (!groups.has(title)) groups.set(title, []);
+    groups.get(title).push(note);
   });
-  const badge = /高|偏高|汤汁|油脂|加速/.test(note) ? "重点关注" : /中/.test(note) ? "适量观察" : "较稳";
-  return { title: rawTitle || "食物参考", detail, metrics, badge };
+  return [...groups.entries()].map(([title, groupNotes]) => {
+    const text = groupNotes.join("；");
+    const giValues = [...text.matchAll(/\bGI\s*([0-9.]+)/g)].map((match) => Number(match[1]));
+    const glValues = [...text.matchAll(/\bGL\s*([0-9.]+)/g)].map((match) => Number(match[1]));
+    const severity = mealSeverity(text).className;
+    return {
+      title,
+      badge: severity === "danger" ? "重点关注" : severity === "warn" ? "适量观察" : "较稳",
+      severity,
+      metrics: [
+        { label: "GI", value: displayValues(uniqueValues(giValues)), tone: aggregateMetricTone("GI", giValues) },
+        { label: "GL", value: displayValues(uniqueValues(glValues)), tone: aggregateMetricTone("GL", glValues) },
+        { label: "营养素", value: inferNutrientFromText(text), tone: severity === "danger" ? "warn" : "good" },
+      ],
+      detail: cleanNutritionNote(text.replace(/\bII\s*[0-9.]+/g, "")),
+    };
+  });
+}
+
+function cleanMealItemTitle(title) {
+  return String(title || "食物参考").split("≈")[0].trim() || "食物参考";
+}
+
+function cleanNutritionNote(note) {
+  return String(note || "")
+    .replace(/GI\/GL\/II/g, "GI/GL")
+    .replace(/低或中等 II/g, "餐后反应较低到中等")
+    .replace(/低 II/g, "餐后反应低")
+    .replace(/中 II/g, "餐后反应中等")
+    .replace(/高 II/g, "餐后反应偏高")
+    .replace(/胰岛素指数\s*[0-9.]+（低）/g, "餐后反应低")
+    .replace(/胰岛素指数\s*[0-9.]+（中等）/g, "餐后反应中等")
+    .replace(/胰岛素指数\s*[0-9.]+（高）/g, "餐后反应偏高")
+    .replace(/胰岛素指数(?:为)?(低|中等|偏高|高)/g, "餐后反应$1")
+    .replace(/\bII\s*[0-9.]+(?:（[^）]*）)?[，,。；;]*/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function nutrientLabel(group) {
+  const labels = {
+    staple: "主食",
+    protein: "蛋白质",
+    vegetable: "蔬菜",
+    fruit: "水果",
+    drink: "饮品",
+    fat_sauce: "油脂",
+  };
+  return labels[group] || "食物";
+}
+
+function inferNutrientFromText(text) {
+  if (/米饭|主食|糙米|黑米|紫米/.test(text)) return "主食";
+  if (/蛋|肉|鸡|鱼|虾|豆腐|蛋白/.test(text)) return "蛋白质";
+  if (/菜|番茄|菠菜|丝瓜|黄瓜|蔬菜/.test(text)) return "蔬菜";
+  return "参考";
+}
+
+function uniqueValues(values) {
+  return [...new Set(values.filter((value) => value !== undefined && value !== null && value !== ""))];
+}
+
+function displayValues(values) {
+  if (!values.length) return "-";
+  return values.join("/");
+}
+
+function aggregateMetricTone(label, values) {
+  if (!values.length) return "good";
+  const tones = values.map((value) => mealMetricTone(label, Number(value)));
+  if (tones.includes("danger")) return "danger";
+  if (tones.includes("warn")) return "warn";
+  return "good";
 }
 
 function mealMetricTone(label, value) {
@@ -502,15 +611,22 @@ function mealMetricTone(label, value) {
 }
 
 function renderMealActionSection(title, items) {
-  if (!items.length) return "";
+  const actionItems = title === "建议吃法" ? withMeal211(items) : items;
+  if (!actionItems.length) return "";
   return `
     <section class="meal-section">
       <h4>${escapeHtml(title)}</h4>
       <div class="meal-action-list">
-        ${items.map((item, index) => `<div><span>${index + 1}</span><p>${highlightMealText(item)}</p></div>`).join("")}
+        ${actionItems.map((item, index) => `<div><span>${index + 1}</span><p>${highlightMealText(item)}</p></div>`).join("")}
       </div>
     </section>
   `;
+}
+
+function withMeal211(items) {
+  const current = Array.isArray(items) ? items : [];
+  if (current.some((item) => /211|2\s*份蔬菜/.test(item))) return current;
+  return ["采用 211 餐盘法（2 份蔬菜、1 份蛋白质、1 份主食），先按这个比例看当前餐盘，再调整主食份量。", ...current];
 }
 
 function mealSeverity(text) {
@@ -524,9 +640,9 @@ function mealSeverity(text) {
 }
 
 function highlightMealText(text) {
-  const safe = escapeHtml(text);
+  const safe = escapeHtml(cleanNutritionNote(text));
   return safe.replace(
-    /(偏高|高 GL|高 II|汤汁|油脂|拌饭|加速|共享餐桌|实际摄入量|主食|份量|中等|低 GL|低 II|GI\s*[0-9.]+|GL\s*[0-9.]+|II\s*[0-9.]+)/g,
+    /(211 餐盘法|2 份蔬菜|1 份蛋白质|1 份主食|偏高|高 GL|汤汁|油脂|拌饭|加速|共享餐桌|实际摄入量|主食|份量|中等|低 GL|GI\s*[0-9.]+|GL\s*[0-9.]+|营养素)/g,
     (match) => {
       const tone = /偏高|高 GL|高 II|汤汁|油脂|拌饭|加速|共享|实际/.test(match)
         ? "danger"
