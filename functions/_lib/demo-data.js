@@ -9,7 +9,7 @@ export const metrics = {
   steps: 4200,
   heartRate: 78,
   missedCheckinDays: 3,
-  dataSource: "模拟设备数据",
+  dataSource: "示例设备数据",
 };
 
 export const reasons = [
@@ -111,7 +111,7 @@ export const content = {
     {
       title: "糖前基础",
       label: "Prediabetes 101",
-      source: "原站指南",
+      source: "指南",
       summary: "解释糖尿病前期、OGTT、HbA1c、空腹血糖和不同糖前亚型，帮助读者判断自己处在哪个风险阶段。",
       keywords: ["糖前基础", "诊断标准", "风险阶段"],
       originPath: "/guide/prediabetes",
@@ -120,7 +120,7 @@ export const content = {
     {
       title: "CGM 监测",
       label: "Glucose tracking",
-      source: "原站指南",
+      source: "指南",
       summary: "用动态血糖理解个人化餐后反应，讨论 CGM 是否适合糖前、如何避免数据焦虑、哪些指标最值得看。",
       keywords: ["CGM", "餐后反应", "动态血糖"],
       originPath: "/guide/cgm",
@@ -129,7 +129,7 @@ export const content = {
     {
       title: "饮食干预",
       label: "Diet",
-      source: "原站指南",
+      source: "指南",
       summary: "聚焦蛋白质、膳食纤维、低 GI 主食、进食顺序、补充剂和体重管理，先给可执行清单，再放研究证据。",
       keywords: ["饮食结构", "低 GI", "进食顺序"],
       originPath: "/guide/diet",
@@ -138,7 +138,7 @@ export const content = {
     {
       title: "运动睡眠",
       label: "Exercise / Sleep",
-      source: "原站指南",
+      source: "指南",
       summary: "聚焦饭后步行、有氧、抗阻训练、肌肉量、身体成分、睡眠节律和恢复，把运动睡眠拆成可执行路线。",
       keywords: ["饭后步行", "抗阻训练", "睡眠节律"],
       originPath: "/guide/exercise-sleep",
@@ -147,7 +147,7 @@ export const content = {
     {
       title: "情绪管理",
       label: "Stress / Emotion",
-      source: "原站指南",
+      source: "指南",
       summary: "追踪压力、情绪、睡眠质量、皮质醇和行为坚持度，帮助读者理解心理状态如何影响血糖与代谢。",
       keywords: ["压力", "情绪", "行为坚持"],
       originPath: "/guide/stress-emotion",
@@ -156,7 +156,7 @@ export const content = {
     {
       title: "代谢健康",
       label: "Metabolic health",
-      source: "原站指南",
+      source: "指南",
       summary: "把肝脏脂肪、胰岛素敏感性、血脂、炎症、身体成分和长期疾病风险放在同一张代谢地图里。",
       keywords: ["胰岛素敏感性", "血脂", "身体成分"],
       originPath: "/guide/metabolic-health",

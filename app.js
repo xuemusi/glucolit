@@ -23,8 +23,8 @@ const state = {
 };
 
 const statusLabels = {
-  attention: "需关注",
-  responded: "已响应",
+  attention: "需留意",
+  responded: "已处理",
   completed: "今日已完成",
 };
 
@@ -154,7 +154,7 @@ function boundary() {
 
 function render() {
   if (!state.user) {
-    app.innerHTML = `<section class="stack"><div class="hero-card"><p class="eyebrow">Welcome</p><h2>把异常指标变成今天能做到的一小步</h2><p class="muted">输入手机号后进入 GLUCOLIT 黑客松 Demo。</p></div></section>`;
+    app.innerHTML = `<section class="stack"><div class="hero-card"><p class="eyebrow">Welcome</p><h2>把异常指标变成今天能做到的一小步</h2><p class="muted">输入手机号后开始保存你的记录。</p></div></section>`;
     if (!registerDialog.open) registerDialog.showModal();
     return;
   }
@@ -191,7 +191,7 @@ function renderHome() {
         <div class="wellness-score">
           <div class="score-ring" aria-label="今日状态 82 分">
             <strong>82</strong>
-            <span>状态良好</span>
+            <span>稳住节奏</span>
           </div>
           <div>
             <p class="focus-copy">餐后峰值偏高叠加睡眠不足。今晚先完成饭后 15-20 分钟步行，不需要重启完整计划。</p>
@@ -219,12 +219,12 @@ function renderHome() {
       </div>
       <div class="card">
         <div class="panel-header">
-          <h2>AI 监控预警</h2>
-          <button class="ghost-button" data-go="actions" type="button">去行动</button>
+          <h2>今日提醒</h2>
+          <button class="ghost-button" data-go="actions" type="button">去打卡</button>
         </div>
         <ul class="warning-list">
           ${daily.reasons
-            .map((reason) => `<li><strong>${reason}</strong><span>影响：可能让餐后波动更难回落。</span><em>行动：连接到今晚一个低风险小行动。</em></li>`)
+            .map((reason) => `<li><strong>${reason}</strong><span>可能会让餐后恢复慢一点。</span><em>建议：今晚先完成一个低风险小行动。</em></li>`)
             .join("")}
         </ul>
       </div>
@@ -250,7 +250,7 @@ function renderHome() {
       <div class="card">
         <h2>最近记录</h2>
         <ul class="recent-list">
-          ${(data.recentAnalysis.length ? data.recentAnalysis : [{ title: "还没有识别记录", summary: "去 AI 工具页用样例报告、餐盘或配料表跑一次。" }])
+          ${(data.recentAnalysis.length ? data.recentAnalysis : [{ title: "还没有识别记录", summary: "可以先上传报告、餐盘或配料表，生成第一条记录。" }])
             .map((item) => `<li><strong>${item.title}</strong><br><span class="small">${item.summary}</span></li>`)
             .join("")}
         </ul>
@@ -317,9 +317,9 @@ function renderScannerPreview() {
 }
 
 function toolIntro(type) {
-  if (type === "report") return "识别 HbA1c、空腹血糖、餐后 2 小时血糖等字段，并要求用户校对。";
-  if (type === "meal") return "识别主食、蛋白、蔬菜和烹饪方式，输出碳水风险和替换建议。";
-  return "识别添加糖、精制碳水、蛋白和膳食纤维，给出购买建议。";
+  if (type === "report") return "读取 HbA1c、空腹血糖、餐后 2 小时血糖等指标，并提醒你确认数值。";
+  if (type === "meal") return "看主食、蛋白质、蔬菜和烹饪方式，判断餐后波动风险并给出替换建议。";
+  return "看添加糖、精制碳水、蛋白质和膳食纤维，给出是否适合常买的建议。";
 }
 
 function scannerTitle(type) {
@@ -339,7 +339,7 @@ function scannerStateLabel() {
   if (state.selectedFileName && !state.latestAnalysis && state.streamStatus) return "请重试";
   if (state.latestAnalysisMeta?.fallback === false) return "已生成建议";
   if (state.latestAnalysis) return "参考建议";
-  return "可拍照上传";
+  return "可以上传";
 }
 
 function scannerIdleCopy(type) {
@@ -375,7 +375,7 @@ function renderAnalysis(analysis) {
         ${renderReportAdvice(result.professional_advice || result.action_suggestions || [], "专业建议")}
         ${renderReportAdvice(result.doctor_questions || [], "就诊时可问")}
         ${renderRawFields(result.fields || [])}
-        <button class="secondary-button" type="button">确认无误，生成今日行动</button>
+        <button class="secondary-button" type="button">信息确认无误，生成今日行动</button>
       </div>
     `;
   }
@@ -441,7 +441,7 @@ function renderReportCurveTable(rows) {
   if (!rows.length) return "";
   return `
     <section class="report-section">
-      <h4>曲线结构</h4>
+      <h4>检查曲线</h4>
       <div class="report-table-wrap">
         <table class="report-table curve-table">
           <thead><tr><th>时间</th><th>血糖</th><th>胰岛素</th><th>C肽</th></tr></thead>
@@ -469,7 +469,7 @@ function renderReportDerived(items) {
   if (!items.length) return "";
   return `
     <section class="report-section">
-      <h4>计算指标</h4>
+      <h4>进一步参考指标</h4>
       <div class="mini-metric-grid report-derived-grid">
         ${items.map((item) => `<div><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.value)}</strong><small>${escapeHtml(item.note)}</small></div>`).join("")}
       </div>
@@ -491,7 +491,7 @@ function renderRawFields(fields) {
   if (!fields.length) return "";
   return `
     <details class="raw-fields">
-      <summary>查看原始识别字段</summary>
+      <summary>查看识别到的原始指标</summary>
       <div class="field-table">
         ${fields.map((field) => `<div><strong>${escapeHtml(field.label)}</strong><span>${escapeHtml(field.value)}<br><small>${escapeHtml(field.note)}</small></span></div>`).join("")}
       </div>
@@ -569,7 +569,7 @@ function renderActions() {
             <p class="eyebrow">今日行动</p>
             <h2>${doneCount}/${sorted.length} 已完成</h2>
           </div>
-          <button class="ghost-button" type="button" data-complete-all>一键完成</button>
+          <button class="ghost-button" type="button" data-complete-all>全部标记完成</button>
         </div>
         <p class="muted">今天只完成 3-5 件小事，不追求完美。</p>
       </div>
@@ -600,7 +600,7 @@ function renderCompanion() {
       <div class="card call-card">
         <div class="avatar" aria-hidden="true"></div>
         <div>
-          <p class="eyebrow">用户主动发起</p>
+          <p class="eyebrow">你来决定</p>
           <h2>AI 行动陪伴</h2>
           <p class="muted">我看到你今天已经有几个关注信号。我们不用重启完整计划，先完成一件事：晚饭后走 15 分钟。</p>
         </div>
@@ -640,7 +640,7 @@ function renderProfile() {
       <div class="card stack">
         <div class="panel-header">
           <h2>身体成分</h2>
-          <span class="tag">固定档案</span>
+          <span class="tag">长期记录</span>
         </div>
         <div class="mini-metric-grid">
           ${profile.bodyComposition.map((item) => `<div><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.value)} ${escapeHtml(item.unit)}</strong><small>${escapeHtml(item.note)}</small></div>`).join("")}
@@ -649,8 +649,8 @@ function renderProfile() {
 
       <div class="card stack">
         <div class="panel-header">
-          <h2>OGTT 曲线对比</h2>
-          <span class="tag">基线 vs 复查</span>
+          <h2>糖耐量曲线对比</h2>
+          <span class="tag">前后对比</span>
         </div>
         ${renderOgttProfileChart(profile)}
         <ul class="content-list">${profile.ogtt.shape.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
@@ -660,16 +660,16 @@ function renderProfile() {
 
       <div class="card stack">
         <div class="panel-header">
-          <h2>固定指标档案</h2>
-          <span class="tag">可由报告抽取</span>
+          <h2>复查指标记录</h2>
+          <span class="tag">上传报告后补充</span>
         </div>
         ${profile.labGroups.map(renderProfileLabGroup).join("")}
       </div>
 
       <div class="card stack">
         <div class="panel-header">
-          <h2>维护期优先级</h2>
-          <span class="tag">防回潮</span>
+          <h2>近期重点关注</h2>
+          <span class="tag">避免反复</span>
         </div>
         <div class="priority-list">${profile.watchPriorities.map(renderPriorityItem).join("")}</div>
       </div>
@@ -677,15 +677,15 @@ function renderProfile() {
       <div class="card stack">
         <div class="panel-header">
           <h2>复查计划</h2>
-          <span class="tag">医生确认</span>
+          <span class="tag">按医嘱调整</span>
         </div>
         <div class="timeline-list">${profile.followUps.map(renderFollowUpItem).join("")}</div>
       </div>
 
       <div class="card stack">
         <div class="panel-header">
-          <h2>监测目标</h2>
-          <span class="tag">趋势观察</span>
+          <h2>日常观察目标</h2>
+          <span class="tag">看长期趋势</span>
         </div>
         <div class="mini-metric-grid">
           ${profile.monitoringTargets.map((item) => `<div><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.value)}</strong><small>按医生建议调整个人目标</small></div>`).join("")}
@@ -694,7 +694,7 @@ function renderProfile() {
 
       <div class="card stack">
         <div class="panel-header">
-          <h2>档案时间线</h2>
+          <h2>健康记录时间线</h2>
           <span class="tag">关键节点</span>
         </div>
         <div class="timeline-list">${profile.timeline.map(renderTimelineEvent).join("")}</div>
@@ -709,7 +709,8 @@ function renderProfile() {
       </div>
 
       <div class="card">
-        <h2>后续要沉淀的字段</h2>
+        <h2>下次复查可补充的指标</h2>
+        <p class="muted">这些不是今天都要填写，用于下次上传报告或和医生沟通时逐步完善。</p>
         <div class="tag-row">${profile.fixedMetricSchema.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>
       </div>
       <p class="medical-boundary">${escapeHtml(summary.boundary)}</p>
@@ -732,15 +733,15 @@ function renderOgttProfileChart(profile) {
   const points = buildSparklinePoints(profile.ogtt.glucose.latest, 4.2, 9.8);
   const baselinePoints = buildSparklinePoints(profile.ogtt.glucose.baseline, 4.2, 9.8);
   return `
-    <div class="profile-chart" aria-label="复查 OGTT 葡萄糖曲线">
+    <div class="profile-chart" aria-label="复查糖耐量葡萄糖曲线">
       <svg viewBox="0 0 320 132" role="img">
         <path class="profile-chart-band" d="M0 64 H320 V94 H0 Z"></path>
         <polyline class="profile-chart-line baseline" points="${baselinePoints}"></polyline>
         <polyline class="profile-chart-line latest" points="${points}"></polyline>
       </svg>
       <div class="profile-chart-legend">
-        <span><i class="latest"></i>复查葡萄糖</span>
-        <span><i class="baseline"></i>基线葡萄糖</span>
+        <span><i class="latest"></i>最近复查</span>
+        <span><i class="baseline"></i>首次检查</span>
       </div>
       <div class="profile-time-row">${profile.ogtt.times.map((time) => `<span>${escapeHtml(time)}</span>`).join("")}</div>
     </div>
@@ -844,21 +845,21 @@ function renderContent() {
   return `
     <section class="stack">
       <div class="hero-card">
-        <p class="eyebrow">科普 / 社区</p>
-        <h2>原站社区内容库</h2>
-        <p class="muted">已从原站录入 ${guides.length} 个指南专题和 ${articles.length} 篇研究解读。当前先做内容阅读入口，不做发帖评论。</p>
+        <p class="eyebrow">科普</p>
+        <h2>糖前知识库</h2>
+        <p class="muted">已整理 ${guides.length} 个指南主题和 ${articles.length} 篇研究参考，帮你把专业内容转成日常可执行的选择。</p>
       </div>
       <div class="content-section">
         <div class="section-heading">
-          <p class="eyebrow">Topic clusters</p>
+          <p class="eyebrow">主题</p>
           <h2>指南专题</h2>
         </div>
         <div class="content-grid">${guides.map(renderGuideCard).join("")}</div>
       </div>
       <div class="content-section">
         <div class="section-heading">
-          <p class="eyebrow">Latest research notes</p>
-          <h2>研究解读</h2>
+          <p class="eyebrow">研究参考</p>
+          <h2>研究怎么用到生活里</h2>
         </div>
         <div class="content-grid">${articles.map(renderArticleCard).join("")}</div>
       </div>
@@ -887,7 +888,7 @@ function renderGuideCard(guide) {
       <div class="tag-row">${(guide.keywords || []).map((tag) => `<span>${tag}</span>`).join("")}</div>
       <div class="content-actions">
         <button class="text-link" type="button" data-content-kind="guide" data-content-id="${guide.originPath}">查看详情</button>
-        <a class="text-link secondary-link" href="${guide.url}" target="_blank" rel="noreferrer">原站</a>
+        <a class="text-link secondary-link" href="${guide.url}" target="_blank" rel="noreferrer">查看来源</a>
       </div>
     </article>
   `;
@@ -907,7 +908,7 @@ function renderArticleCard(article) {
       <p class="source-line">${article.source}</p>
       <div class="content-actions">
         <button class="text-link" type="button" data-content-kind="article" data-content-id="${article.originPath}">查看详情</button>
-        <a class="text-link secondary-link" href="${article.url}" target="_blank" rel="noreferrer">原站</a>
+        <a class="text-link secondary-link" href="${article.url}" target="_blank" rel="noreferrer">查看来源</a>
       </div>
     </article>
   `;
@@ -934,7 +935,7 @@ function renderContentDetail(selected) {
         <h2>证据边界</h2>
         <p class="muted">这部分内容用于理解方向和设计个人生活实验，不替代医生诊断、治疗和用药建议。已有慢病、怀孕、低血糖风险高或指标明显异常时，应先咨询医生。</p>
       </div>
-      <a class="primary-button link-button" href="${item.url}" target="_blank" rel="noreferrer">打开原站完整内容</a>
+      <a class="primary-button link-button" href="${item.url}" target="_blank" rel="noreferrer">查看来源原文</a>
       ${boundary()}
     </section>
   `;
