@@ -664,7 +664,8 @@ button {
 .tab-button,
 .ghost-button,
 .secondary-button,
-.primary-button {
+.primary-button,
+.retry-button {
   min-height: 42px;
   border: 1px solid var(--line);
   border-radius: 15px;
@@ -2435,4 +2436,26 @@ button {
   .screen {
     height: calc(min(900px, 100vh - 56px) - 86px);
   }
+}
+
+/* AI 识别超时与重试 UI 优化 */
+.error-tip-box {
+  border-left: 4px solid var(--coral);
+  padding: 10px 12px;
+  border-radius: 0 16px 16px 0;
+  background: var(--coral-soft);
+  color: #a85438;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.error-tip-box p {
+  margin: 0;
+}
+
+.retry-button {
+  width: 100%;
+  border-color: var(--coral);
+  background: linear-gradient(180deg, #f78d68, var(--coral));
+  color: white;
 }

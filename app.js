@@ -29,6 +29,8 @@ function createToolState() {
     streamText: "",
     streamStatus: "",
     loading: false,
+    lastRequest: null,
+    error: null,
   };
 }
 
@@ -98,28 +100,46 @@ async function api(path, options = {}) {
 }
 
 async function analyzeApi(body, tool = body.type || state.selectedTool) {
-  const response = await fetch("/api/analyze", {
-    method: "POST",
-    headers: {
-      accept: "text/event-stream",
-      "content-type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
+  const slot = toolState(tool);
+  slot.lastRequest = body;
+  slot.error = null;
 
-  const contentType = response.headers.get("content-type") || "";
-  if (!response.ok) {
-    const data = await response.json().catch(() => ({}));
-    throw new Error(data.error || "请求失败");
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, 35000); // 35 秒超时
+
+  try {
+    const response = await fetch("/api/analyze", {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        accept: "text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    const contentType = response.headers.get("content-type") || "";
+    if (!response.ok) {
+      clearTimeout(timeoutId);
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || "请求失败");
+    }
+
+    if (!contentType.includes("text/event-stream")) {
+      clearTimeout(timeoutId);
+      const data = await response.json();
+      applyAnalysisResult(data, tool);
+      return;
+    }
+
+    await readAnalysisStream(response, tool, controller);
+    clearTimeout(timeoutId);
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
   }
-
-  if (!contentType.includes("text/event-stream")) {
-    const data = await response.json();
-    applyAnalysisResult(data, tool);
-    return;
-  }
-
-  await readAnalysisStream(response, tool);
 }
 
 async function readAnalysisStream(response, tool) {
@@ -415,9 +435,15 @@ function renderTools() {
           `}
         </div>
         <input class="file-input" id="photoInput" type="file" accept="image/*">
+        ${slot.error ? `
+          <div class="error-tip-box stack">
+            <p class="error-message">${escapeHtml(slot.error.message)}</p>
+          </div>
+          <button class="retry-button" type="button" data-retry="${state.selectedTool}">重新发起识别</button>
+        ` : ""}
         <div class="tool-actions">
-          <button class="primary-button" type="button" data-photo-trigger>${slot.loading ? "正在为你分析..." : "拍照上传"}</button>
-          <button class="secondary-button" type="button" data-analyze="${state.selectedTool}">使用样例</button>
+          <button class="primary-button" type="button" data-photo-trigger ${slot.loading ? "disabled" : ""}>${slot.loading ? "正在为你分析..." : "拍照上传"}</button>
+          <button class="secondary-button" type="button" data-analyze="${state.selectedTool}" ${slot.loading ? "disabled" : ""}>使用样例</button>
         </div>
       </div>
       ${slot.loading ? renderStreamOutput() : ""}
@@ -459,6 +485,7 @@ function scannerHint(type) {
 function scannerStateLabel() {
   const slot = currentToolState();
   if (slot.loading) return "正在读取";
+  if (slot.error) return slot.error.isTimeout ? "请求超时" : "识别失败";
   if (slot.selectedFileName && !slot.latestAnalysis && slot.streamStatus) return "请重试";
   if (slot.latestAnalysisMeta?.fallback === false) return "已生成建议";
   if (slot.latestAnalysis) return "参考建议";
@@ -1584,7 +1611,13 @@ function bindViewEvents() {
         }, tool);
         await loadAppState();
       } catch (error) {
-        slot.streamStatus = error.message || "识别失败，请稍后重试";
+        console.error(error);
+        const isTimeout = error.name === "AbortError";
+        slot.error = {
+          message: isTimeout ? "由于生成建议耗时较长（已超时），你可以稍后在“最近记录”中查看，或点击重试" : (error.message || "识别失败，请稍后重试"),
+          isTimeout
+        };
+        slot.streamStatus = isTimeout ? "请求超时" : "识别失败";
       } finally {
         slot.loading = false;
         render();
@@ -1606,7 +1639,42 @@ function bindViewEvents() {
         await analyzeApi({ user_id: state.user.id, type: tool }, tool);
         await loadAppState();
       } catch (error) {
-        slot.streamStatus = error.message || "识别失败，请稍后重试";
+        console.error(error);
+        const isTimeout = error.name === "AbortError";
+        slot.error = {
+          message: isTimeout ? "由于生成建议耗时较长（已超时），你可以稍后在“最近记录”中查看，或点击重试" : (error.message || "识别失败，请稍后重试"),
+          isTimeout
+        };
+        slot.streamStatus = isTimeout ? "请求超时" : "识别失败";
+      } finally {
+        slot.loading = false;
+        render();
+      }
+    });
+  });
+  document.querySelectorAll("[data-retry]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const tool = button.dataset.retry;
+      const slot = toolState(tool);
+      if (!slot.lastRequest) return;
+      slot.loading = true;
+      slot.latestAnalysis = null;
+      slot.latestAnalysisMeta = null;
+      slot.streamText = "";
+      slot.error = null;
+      slot.streamStatus = "正在重新提交分析...";
+      render();
+      try {
+        await analyzeApi(slot.lastRequest, tool);
+        await loadAppState();
+      } catch (error) {
+        console.error(error);
+        const isTimeout = error.name === "AbortError";
+        slot.error = {
+          message: isTimeout ? "由于生成建议耗时较长（已超时），你可以稍后在“最近记录”中查看，或点击重试" : (error.message || "识别失败，请稍后重试"),
+          isTimeout
+        };
+        slot.streamStatus = isTimeout ? "请求超时" : "识别失败";
       } finally {
         slot.loading = false;
         render();
