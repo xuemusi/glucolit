@@ -748,6 +748,7 @@ function renderAnalysis(analysis) {
 function renderLabelAnalysis(analysis, sourceLabel) {
   const result = analysis.result || {};
   const advice = labelAdvice(result.purchase_label || result.purchaseAdvice);
+
   return `
     <div class="analysis-card label-analysis stack">
       <div class="label-hero ${advice.className}">
@@ -767,7 +768,7 @@ function renderLabelAnalysis(analysis, sourceLabel) {
       </div>
       ${renderLabelSignalList("怎么吃/怎么喝", result.use_tips || [], "neutral")}
       ${renderLabelSignalList("替代选择", result.alternatives || [], "good")}
-      <p class="meal-source">${escapeHtml(sourceLabel)} · ${escapeHtml(result.knowledge_version || "配料表规则库")}</p>
+      <p class="meal-source">${escapeHtml(sourceLabel)} · 基于食品控糖规则评估</p>
       <p class="helper">${escapeHtml(result.boundary || result.medical_boundary || "")}</p>
     </div>
   `;
@@ -1324,9 +1325,25 @@ function streamReadableText(raw, type) {
     if (match?.[1]) return match[1];
   }
 
+  const loadingPhrases = [
+    "正在提取报告中的",
+    "已完成单位换算和",
+    "正在识别餐盘中的",
+    "已完成餐盘结构判断",
+    "正在识别配料顺序",
+    "已完成添加糖"
+  ];
+  if (loadingPhrases.some((phrase) => cleaned.includes(phrase))) {
+    const lines = cleaned.split("\n").map((l) => l.trim()).filter(Boolean);
+    if (lines.length > 0) {
+      return lines[lines.length - 1];
+    }
+  }
+
   if (/^[{\[]/.test(cleaned) || /"\w+"\s*:/.test(cleaned)) return streamPlaceholder(type);
   return cleaned.slice(0, 160);
 }
+
 
 function streamPlaceholder(type) {
   if (type === "report") return "我会先提取关键指标，再提醒你哪些数值需要人工确认。";
