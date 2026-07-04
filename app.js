@@ -12,15 +12,34 @@ const state = {
   sessionToken: localStorage.getItem("glucolit:session"),
   appState: null,
   selectedTool: "report",
-  latestAnalysis: null,
-  latestAnalysisMeta: null,
-  selectedFileName: "",
-  selectedImagePreview: "",
+  toolState: {
+    report: createToolState(),
+    meal: createToolState(),
+    label: createToolState(),
+  },
   selectedContent: null,
-  streamText: "",
-  streamStatus: "",
-  loading: false,
 };
+
+function createToolState() {
+  return {
+    latestAnalysis: null,
+    latestAnalysisMeta: null,
+    selectedFileName: "",
+    selectedImagePreview: "",
+    streamText: "",
+    streamStatus: "",
+    loading: false,
+  };
+}
+
+function currentToolState() {
+  return toolState(state.selectedTool);
+}
+
+function toolState(type) {
+  if (!state.toolState[type]) state.toolState[type] = createToolState();
+  return state.toolState[type];
+}
 
 const statusLabels = {
   attention: "需留意",
@@ -51,7 +70,7 @@ async function api(path, options = {}) {
   return data;
 }
 
-async function analyzeApi(body) {
+async function analyzeApi(body, tool = body.type || state.selectedTool) {
   const response = await fetch("/api/analyze", {
     method: "POST",
     headers: {
@@ -69,17 +88,18 @@ async function analyzeApi(body) {
 
   if (!contentType.includes("text/event-stream")) {
     const data = await response.json();
-    applyAnalysisResult(data);
+    applyAnalysisResult(data, tool);
     return;
   }
 
-  await readAnalysisStream(response);
+  await readAnalysisStream(response, tool);
 }
 
-async function readAnalysisStream(response) {
+async function readAnalysisStream(response, tool) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  const slot = toolState(tool);
 
   const handleBlock = (block) => {
     let event = "message";
@@ -93,22 +113,22 @@ async function readAnalysisStream(response) {
 
     const payload = JSON.parse(dataLines.join("\n"));
     if (event === "meta") {
-      state.latestAnalysisMeta = { fallback: payload.fallback, model: payload.model, thinking: payload.thinking };
-      state.streamStatus = "正在看清图片里的关键信息";
-      updateStreamOutput();
+      slot.latestAnalysisMeta = { fallback: payload.fallback, model: payload.model, thinking: payload.thinking };
+      slot.streamStatus = "正在看清图片里的关键信息";
+      updateStreamOutput(tool);
     }
     if (event === "token") {
-      state.streamText += payload.content || "";
-      state.streamStatus = "正在整理成你能直接用的建议";
-      updateStreamOutput();
+      slot.streamText += payload.content || "";
+      slot.streamStatus = "正在整理成你能直接用的建议";
+      updateStreamOutput(tool);
     }
     if (event === "fallback") {
-      state.streamStatus = payload.message ? "图片信息不够稳定，先给你一份参考建议" : "先给你一份参考建议";
-      updateStreamOutput();
+      slot.streamStatus = payload.message ? "图片信息不够稳定，先给你一份参考建议" : "先给你一份参考建议";
+      updateStreamOutput(tool);
     }
     if (event === "done") {
-      applyAnalysisResult(payload);
-      updateStreamOutput();
+      applyAnalysisResult(payload, tool);
+      updateStreamOutput(tool);
     }
   };
 
@@ -123,11 +143,12 @@ async function readAnalysisStream(response) {
   if (buffer.trim()) handleBlock(buffer);
 }
 
-function applyAnalysisResult(data) {
-  state.latestAnalysis = data.analysis;
-  state.latestAnalysisMeta = { fallback: data.fallback, model: data.model, model_error: data.model_error };
-  state.streamStatus = data.fallback ? "已整理参考建议" : "建议已生成";
-  state.streamText = "";
+function applyAnalysisResult(data, tool = data.analysis?.type || state.selectedTool) {
+  const slot = toolState(tool);
+  slot.latestAnalysis = data.analysis;
+  slot.latestAnalysisMeta = { fallback: data.fallback, model: data.model, model_error: data.model_error };
+  slot.streamStatus = data.fallback ? "已整理参考建议" : "建议已生成";
+  slot.streamText = "";
 }
 
 function saveSession(data) {
@@ -270,6 +291,7 @@ function choiceGroup(kind, options, active) {
 }
 
 function renderTools() {
+  const slot = currentToolState();
   return `
     <section class="stack">
       <div class="hero-card tool-hero">
@@ -287,31 +309,32 @@ function renderTools() {
           <h2>${scannerTitle(state.selectedTool)}</h2>
           <span class="risk-pill">${scannerStateLabel()}</span>
         </div>
-        <div class="scanner-frame${state.selectedImagePreview ? " has-preview" : ""}">
+        <div class="scanner-frame${slot.selectedImagePreview ? " has-preview" : ""}">
           <div class="scanner-line"></div>
-          ${state.selectedImagePreview ? renderScannerPreview() : `
+          ${slot.selectedImagePreview ? renderScannerPreview() : `
             <strong>${scannerHint(state.selectedTool)}</strong>
             <span>${scannerIdleCopy(state.selectedTool)}</span>
           `}
         </div>
         <input class="file-input" id="photoInput" type="file" accept="image/*">
         <div class="tool-actions">
-          <button class="primary-button" type="button" data-photo-trigger>${state.loading ? "正在为你分析..." : "拍照上传"}</button>
+          <button class="primary-button" type="button" data-photo-trigger>${slot.loading ? "正在为你分析..." : "拍照上传"}</button>
           <button class="secondary-button" type="button" data-analyze="${state.selectedTool}">使用样例</button>
         </div>
       </div>
-      ${state.loading ? renderStreamOutput() : ""}
-      ${state.latestAnalysis ? renderAnalysis(state.latestAnalysis) : ""}
+      ${slot.loading ? renderStreamOutput() : ""}
+      ${slot.latestAnalysis ? renderAnalysis(slot.latestAnalysis) : ""}
       ${boundary()}
     </section>
   `;
 }
 
 function renderScannerPreview() {
+  const slot = currentToolState();
   return `
-    <img class="scanner-preview" src="${escapeHtml(state.selectedImagePreview)}" alt="已上传图片预览">
+    <img class="scanner-preview" src="${escapeHtml(slot.selectedImagePreview)}" alt="已上传图片预览">
     <div class="scanner-caption">
-      <strong>${escapeHtml(state.selectedFileName || "已选择图片")}</strong>
+      <strong>${escapeHtml(slot.selectedFileName || "已选择图片")}</strong>
       <span>${scannerSelectedCopy(state.selectedTool)}</span>
     </div>
   `;
@@ -336,10 +359,11 @@ function scannerHint(type) {
 }
 
 function scannerStateLabel() {
-  if (state.loading) return "正在读取";
-  if (state.selectedFileName && !state.latestAnalysis && state.streamStatus) return "请重试";
-  if (state.latestAnalysisMeta?.fallback === false) return "已生成建议";
-  if (state.latestAnalysis) return "参考建议";
+  const slot = currentToolState();
+  if (slot.loading) return "正在读取";
+  if (slot.selectedFileName && !slot.latestAnalysis && slot.streamStatus) return "请重试";
+  if (slot.latestAnalysisMeta?.fallback === false) return "已生成建议";
+  if (slot.latestAnalysis) return "参考建议";
   return "可以上传";
 }
 
@@ -350,8 +374,9 @@ function scannerIdleCopy(type) {
 }
 
 function scannerSelectedCopy(type) {
-  if (!state.loading && state.latestAnalysis) return "已根据这张图生成建议，可重新拍照替换";
-  if (!state.loading && state.streamStatus) return "这张图已保留，可重新拍照再试";
+  const slot = currentToolState();
+  if (!slot.loading && slot.latestAnalysis) return "已根据这张图生成建议，可重新拍照替换";
+  if (!slot.loading && slot.streamStatus) return "这张图已保留，可重新拍照再试";
   if (type === "report") return "已收到图片，正在找血糖、胰岛素和 HbA1c 等关键项";
   if (type === "meal") return "已收到图片，正在看餐盘结构和餐后波动风险";
   return "已收到图片，正在看添加糖、膳食纤维、蛋白质和碳水";
@@ -359,8 +384,9 @@ function scannerSelectedCopy(type) {
 
 function renderAnalysis(analysis) {
   const result = analysis.result;
+  const slot = toolState(analysis.type);
   const sourceLabel =
-    state.latestAnalysisMeta?.fallback === false
+    slot.latestAnalysisMeta?.fallback === false
       ? "已生成建议"
       : "参考建议";
   if (analysis.type === "report") {
@@ -774,11 +800,12 @@ function renderRawFields(fields) {
 }
 
 function renderStreamOutput() {
-  const readable = streamReadableText(state.streamText, state.selectedTool);
+  const slot = currentToolState();
+  const readable = streamReadableText(slot.streamText, state.selectedTool);
   return `
     <div class="stream-card" aria-live="polite" data-stream-card>
       <div class="stream-header">
-        <span data-stream-status>${state.streamStatus || "准备读取图片"}</span>
+        <span data-stream-status>${slot.streamStatus || "准备读取图片"}</span>
         <i></i>
       </div>
       <p class="typewriter-text" data-stream-text>${escapeHtml(readable || streamPlaceholder(state.selectedTool))}</p>
@@ -786,7 +813,9 @@ function renderStreamOutput() {
   `;
 }
 
-function updateStreamOutput() {
+function updateStreamOutput(tool = state.selectedTool) {
+  if (state.selectedTool !== tool) return;
+  const slot = toolState(tool);
   const card = document.querySelector("[data-stream-card]");
   if (!card) {
     if (state.view === "tools") render();
@@ -795,8 +824,8 @@ function updateStreamOutput() {
 
   const status = card.querySelector("[data-stream-status]");
   const text = card.querySelector("[data-stream-text]");
-  if (status) status.textContent = state.streamStatus || "准备读取图片";
-  if (text) text.textContent = streamReadableText(state.streamText, state.selectedTool) || streamPlaceholder(state.selectedTool);
+  if (status) status.textContent = slot.streamStatus || "准备读取图片";
+  if (text) text.textContent = streamReadableText(slot.streamText, tool) || streamPlaceholder(tool);
 }
 
 function streamReadableText(raw, type) {
@@ -1281,16 +1310,12 @@ function bindViewEvents() {
   document.querySelectorAll("[data-tool]").forEach((button) => {
     button.addEventListener("click", () => {
       state.selectedTool = button.dataset.tool;
-      state.latestAnalysis = null;
-      clearSelectedImage();
       render();
     });
   });
   document.querySelectorAll("[data-tool-shortcut]").forEach((button) => {
     button.addEventListener("click", () => {
       state.selectedTool = button.dataset.toolShortcut;
-      state.latestAnalysis = null;
-      clearSelectedImage();
       setView("tools");
     });
   });
@@ -1303,47 +1328,51 @@ function bindViewEvents() {
     input.addEventListener("change", async () => {
       const file = input.files?.[0];
       if (!file) return;
+      const tool = state.selectedTool;
+      const slot = toolState(tool);
       setSelectedImage(file);
-      state.loading = true;
-      state.latestAnalysis = null;
-      state.latestAnalysisMeta = null;
-      state.streamText = "";
-      state.streamStatus = "正在压缩并提交图片...";
+      slot.loading = true;
+      slot.latestAnalysis = null;
+      slot.latestAnalysisMeta = null;
+      slot.streamText = "";
+      slot.streamStatus = "正在压缩并提交图片...";
       render();
       try {
         const image = await fileToBase64(file);
         await analyzeApi({
           user_id: state.user.id,
-          type: state.selectedTool,
+          type: tool,
           photo_name: file.name,
           mime_type: file.type,
           image_data: image.base64,
-        });
+        }, tool);
         await loadAppState();
       } catch (error) {
-        state.streamStatus = error.message || "识别失败，请稍后重试";
+        slot.streamStatus = error.message || "识别失败，请稍后重试";
       } finally {
-        state.loading = false;
+        slot.loading = false;
         render();
       }
     });
   });
   document.querySelectorAll("[data-analyze]").forEach((button) => {
     button.addEventListener("click", async () => {
-      clearSelectedImage();
-      state.loading = true;
-      state.latestAnalysis = null;
-      state.latestAnalysisMeta = null;
-      state.streamText = "";
-      state.streamStatus = "正在提交样例识别...";
+      const tool = button.dataset.analyze;
+      const slot = toolState(tool);
+      clearSelectedImage(tool);
+      slot.loading = true;
+      slot.latestAnalysis = null;
+      slot.latestAnalysisMeta = null;
+      slot.streamText = "";
+      slot.streamStatus = "正在提交样例识别...";
       render();
       try {
-        await analyzeApi({ user_id: state.user.id, type: button.dataset.analyze });
+        await analyzeApi({ user_id: state.user.id, type: tool }, tool);
         await loadAppState();
       } catch (error) {
-        state.streamStatus = error.message || "识别失败，请稍后重试";
+        slot.streamStatus = error.message || "识别失败，请稍后重试";
       } finally {
-        state.loading = false;
+        slot.loading = false;
         render();
       }
     });
@@ -1379,20 +1408,22 @@ function bindViewEvents() {
   });
 }
 
-function setSelectedImage(file) {
-  clearSelectedImage();
-  state.selectedFileName = file.name || "已选择图片";
+function setSelectedImage(file, tool = state.selectedTool) {
+  const slot = toolState(tool);
+  clearSelectedImage(tool);
+  slot.selectedFileName = file.name || "已选择图片";
   if (typeof URL !== "undefined" && URL.createObjectURL) {
-    state.selectedImagePreview = URL.createObjectURL(file);
+    slot.selectedImagePreview = URL.createObjectURL(file);
   }
 }
 
-function clearSelectedImage() {
-  if (state.selectedImagePreview && state.selectedImagePreview.startsWith("blob:") && typeof URL !== "undefined") {
-    URL.revokeObjectURL(state.selectedImagePreview);
+function clearSelectedImage(tool = state.selectedTool) {
+  const slot = toolState(tool);
+  if (slot.selectedImagePreview && slot.selectedImagePreview.startsWith("blob:") && typeof URL !== "undefined") {
+    URL.revokeObjectURL(slot.selectedImagePreview);
   }
-  state.selectedFileName = "";
-  state.selectedImagePreview = "";
+  slot.selectedFileName = "";
+  slot.selectedImagePreview = "";
 }
 
 function fileToBase64(file) {
