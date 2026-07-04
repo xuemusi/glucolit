@@ -1228,6 +1228,213 @@ button {
   line-height: 1.4;
 }
 
+.label-analysis {
+  gap: 14px;
+}
+
+.label-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(231, 245, 234, 0.86), rgba(255, 253, 247, 0.96));
+  padding: 16px;
+}
+
+.label-hero h3 {
+  margin: 2px 0 0;
+  color: var(--ink);
+  font-size: 1.15rem;
+  line-height: 1.25;
+}
+
+.label-hero span {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.label-hero > strong,
+.label-status {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.label-hero.good > strong,
+.label-status.good {
+  border: 1px solid rgba(116, 197, 154, 0.42);
+  background: var(--mint-soft);
+  color: var(--teal-strong);
+}
+
+.label-hero.warn > strong,
+.label-status.watch {
+  border: 1px solid rgba(212, 139, 42, 0.38);
+  background: var(--amber-soft);
+  color: #8b4f08;
+}
+
+.label-hero.danger > strong,
+.label-status.bad {
+  border: 1px solid rgba(223, 122, 85, 0.42);
+  background: var(--coral-soft);
+  color: #a1371b;
+}
+
+.label-summary {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.94rem;
+  font-weight: 800;
+  line-height: 1.55;
+}
+
+.label-section {
+  display: grid;
+  gap: 9px;
+}
+
+.label-section h4 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+
+.label-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 253, 247, 0.94);
+}
+
+.label-table {
+  width: 100%;
+  min-width: 480px;
+  border-collapse: collapse;
+  color: var(--ink);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.label-table th,
+.label-table td {
+  border-bottom: 1px solid rgba(223, 233, 223, 0.9);
+  padding: 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.label-table th {
+  background: rgba(231, 245, 234, 0.82);
+  color: var(--teal-strong);
+  font-size: 0.72rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.label-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.label-table strong,
+.label-table small {
+  display: block;
+}
+
+.label-table small {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.label-detail-grid,
+.label-signal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.label-mini-panel,
+.label-signal {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 253, 247, 0.92);
+  padding: 12px;
+}
+
+.label-mini-panel > span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.label-mini-panel ol,
+.label-signal ul {
+  display: grid;
+  gap: 7px;
+  margin: 9px 0 0;
+  padding-left: 18px;
+  color: var(--ink);
+  font-size: 0.84rem;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.label-nutrition-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.label-nutrition-grid div {
+  border-radius: 12px;
+  background: rgba(231, 245, 234, 0.72);
+  padding: 8px;
+}
+
+.label-nutrition-grid strong,
+.label-nutrition-grid small {
+  display: block;
+}
+
+.label-nutrition-grid strong {
+  color: var(--teal-strong);
+  font-size: 0.92rem;
+}
+
+.label-nutrition-grid small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.label-signal.good {
+  border-left: 5px solid var(--mint);
+}
+
+.label-signal.warn {
+  border-left: 5px solid var(--amber);
+}
+
+.label-signal.neutral {
+  border-left: 5px solid var(--sage);
+}
+
 .report-section {
   display: grid;
   gap: 9px;
@@ -2353,6 +2560,20 @@ button {
 
   .curve-table td:nth-child(4)::before {
     content: "C肽";
+  }
+
+  .label-hero,
+  .label-detail-grid,
+  .label-signal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .label-hero {
+    display: grid;
+  }
+
+  .label-table {
+    min-width: 420px;
   }
 }
 

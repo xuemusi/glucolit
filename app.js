@@ -507,7 +507,125 @@ function renderAnalysis(analysis) {
   if (analysis.type === "meal") {
     return renderMealAnalysis(analysis, sourceLabel);
   }
-  return renderLabelAnalysis(analysis, sourceLabel);
+  if (analysis.type === "label") {
+    return renderLabelAnalysis(analysis, sourceLabel);
+  }
+  return `
+    <div class="analysis-card stack">
+      <div class="panel-header"><h3>${analysis.title}</h3><span class="risk-pill">${sourceLabel}</span></div>
+      <p class="muted">${analysis.summary}</p>
+      <ul class="warning-list">${result.reasons.map((item) => `<li>${item}</li>`).join("")}</ul>
+      <p class="helper">替换建议：${result.alternatives.join("；")}</p>
+      <p class="helper">${result.boundary}</p>
+    </div>
+  `;
+}
+
+function renderLabelAnalysis(analysis, sourceLabel) {
+  const result = analysis.result || {};
+  const advice = labelAdvice(result.purchase_label || result.purchaseAdvice);
+  return `
+    <div class="analysis-card label-analysis stack">
+      <div class="label-hero ${advice.className}">
+        <div>
+          <p class="eyebrow">配料表识别</p>
+          <h3>${escapeHtml(analysis.title)}</h3>
+          ${result.product?.name ? `<span>${escapeHtml(result.product.name)}</span>` : ""}
+        </div>
+        <strong>${escapeHtml(advice.label)}</strong>
+      </div>
+      <p class="label-summary">${escapeHtml(analysis.summary)}</p>
+      ${renderLabelTrafficTable(result.traffic_lights || [])}
+      ${renderLabelIngredientTable(result.ingredients || [], result.nutrition || {})}
+      <div class="label-signal-grid">
+        ${renderLabelSignalList("好在哪里", result.positives || [], "good")}
+        ${renderLabelSignalList("需要留意", result.concerns || result.reasons || [], "warn")}
+      </div>
+      ${renderLabelSignalList("怎么吃/怎么喝", result.use_tips || [], "neutral")}
+      ${renderLabelSignalList("替代选择", result.alternatives || [], "good")}
+      <p class="meal-source">${escapeHtml(sourceLabel)} · ${escapeHtml(result.knowledge_version || "配料表规则库")}</p>
+      <p class="helper">${escapeHtml(result.boundary || result.medical_boundary || "")}</p>
+    </div>
+  `;
+}
+
+function labelAdvice(value) {
+  if (value === "适合常买" || value === "更适合") return { label: "适合常买", className: "good" };
+  if (value === "不建议常买" || value === "建议替换") return { label: "不建议常买", className: "danger" };
+  return { label: "偶尔少量", className: "warn" };
+}
+
+function renderLabelTrafficTable(items) {
+  if (!items.length) return "";
+  return `
+    <section class="label-section">
+      <h4>购买红绿灯</h4>
+      <div class="label-table-wrap">
+        <table class="label-table">
+          <thead><tr><th>项目</th><th>判断</th><th>说明</th></tr></thead>
+          <tbody>
+            ${items.map((item) => `
+              <tr>
+                <td><strong>${escapeHtml(item.label)}</strong></td>
+                <td><span class="label-status ${escapeHtml(item.status || "watch")}">${escapeHtml(labelStatusText(item.status))}</span><small>${escapeHtml(item.value || "")}</small></td>
+                <td>${escapeHtml(item.note || "")}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  `;
+}
+
+function renderLabelIngredientTable(ingredients, nutrition) {
+  const topIngredients = ingredients.slice(0, 8);
+  const nutrientRows = [
+    ["能量", nutrition.energy_kj, "kJ"],
+    ["糖", nutrition.sugar_g, "g"],
+    ["碳水", nutrition.carbohydrate_g, "g"],
+    ["蛋白质", nutrition.protein_g, "g"],
+    ["脂肪", nutrition.fat_g, "g"],
+    ["钠", nutrition.sodium_mg, "mg"],
+  ].filter((row) => row[1] !== null && row[1] !== undefined);
+  if (!topIngredients.length && !nutrientRows.length) return "";
+  return `
+    <section class="label-section">
+      <h4>识别到的配料和营养</h4>
+      <div class="label-detail-grid">
+        ${topIngredients.length ? `
+          <div class="label-mini-panel">
+            <span>配料顺序</span>
+            <ol>${topIngredients.map((item) => `<li>${escapeHtml(item.name)}</li>`).join("")}</ol>
+          </div>
+        ` : ""}
+        ${nutrientRows.length ? `
+          <div class="label-mini-panel">
+            <span>营养成分 ${escapeHtml(nutrition.basis || "")}</span>
+            <div class="label-nutrition-grid">
+              ${nutrientRows.map(([label, value, unit]) => `<div><strong>${escapeHtml(String(value))}${escapeHtml(unit)}</strong><small>${escapeHtml(label)}</small></div>`).join("")}
+            </div>
+          </div>
+        ` : ""}
+      </div>
+    </section>
+  `;
+}
+
+function renderLabelSignalList(title, items, tone) {
+  if (!items.length) return "";
+  return `
+    <section class="label-section label-signal ${tone}">
+      <h4>${escapeHtml(title)}</h4>
+      <ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+    </section>
+  `;
+}
+
+function labelStatusText(status) {
+  if (status === "good") return "友好";
+  if (status === "bad") return "少买";
+  return "留意";
 }
 
 function renderMealAnalysis(analysis, sourceLabel) {
@@ -531,95 +649,6 @@ function renderMealAnalysis(analysis, sourceLabel) {
       <p class="meal-source">${escapeHtml(sourceLabel)} · 图片估计结果请按实际摄入量确认</p>
     </div>
   `;
-}
-
-function renderLabelAnalysis(analysis, sourceLabel) {
-  const result = analysis.result;
-  const advice = labelPurchaseAdvice(result.purchaseAdvice, analysis.risk_level);
-  const reasons = Array.isArray(result.reasons) ? result.reasons : [];
-  const alternatives = Array.isArray(result.alternatives) ? result.alternatives : [];
-  const boundaryCopy = result.boundary || result.medical_boundary || "配料表建议用于消费选择参考，请结合个人情况和实际摄入量判断。";
-
-  return `
-    <div class="analysis-card label-analysis stack">
-      <div class="label-hero ${advice.tone}">
-        <div>
-          <p class="eyebrow">配料表购买建议</p>
-          <h3>${escapeHtml(advice.title)}</h3>
-        </div>
-        <span class="label-advice-pill">${escapeHtml(sourceLabel)}</span>
-      </div>
-      <p class="label-summary">${highlightLabelText(analysis.summary)}</p>
-      <div class="traffic-light" aria-label="购买建议红绿灯">
-        ${["green", "yellow", "red"].map((tone) => renderTrafficLightStep(tone, advice.tone)).join("")}
-      </div>
-      ${reasons.length ? `
-        <section class="label-section">
-          <h4>触发原因</h4>
-          <div class="label-reason-grid">
-            ${reasons.map((item) => `<div class="${labelReasonTone(item)}"><span>${escapeHtml(labelReasonTag(item))}</span><p>${highlightLabelText(item)}</p></div>`).join("")}
-          </div>
-        </section>
-      ` : ""}
-      ${alternatives.length ? `
-        <section class="label-section">
-          <h4>更稳的替代选择</h4>
-          <div class="label-alternative-list">
-            ${alternatives.map((item, index) => `<div><span>${index + 1}</span><p>${highlightLabelText(item)}</p></div>`).join("")}
-          </div>
-        </section>
-      ` : ""}
-      <p class="meal-source">${escapeHtml(boundaryCopy)}</p>
-    </div>
-  `;
-}
-
-function labelPurchaseAdvice(value, riskLevel) {
-  const normalized = String(value || "").trim();
-  if (normalized === "更适合" || riskLevel === "green") {
-    return { tone: "green", title: "适合常买" };
-  }
-  if (normalized === "建议替换" || riskLevel === "red" || riskLevel === "orange") {
-    return { tone: "red", title: "不建议常买" };
-  }
-  return { tone: "yellow", title: "偶尔少量" };
-}
-
-function renderTrafficLightStep(tone, activeTone) {
-  const labels = {
-    green: "适合常买",
-    yellow: "偶尔少量",
-    red: "不建议常买",
-  };
-  return `
-    <div class="traffic-step ${tone}${tone === activeTone ? " active" : ""}">
-      <i></i>
-      <strong>${labels[tone]}</strong>
-    </div>
-  `;
-}
-
-function labelReasonTone(text) {
-  if (/糖|精制|钠|盐|饱和|反式|脂肪|靠前|偏高|不突出|低/.test(text)) return "warn";
-  return "good";
-}
-
-function labelReasonTag(text) {
-  if (/糖|蔗糖|果葡|糖浆|麦芽糊精/.test(text)) return "添加糖";
-  if (/精制|淀粉|小麦粉|米粉|糊精/.test(text)) return "精制碳水";
-  if (/钠|盐/.test(text)) return "钠";
-  if (/脂肪|饱和|反式|油/.test(text)) return "脂肪";
-  if (/纤维/.test(text)) return "膳食纤维";
-  if (/蛋白/.test(text)) return "蛋白质";
-  return "配料信号";
-}
-
-function highlightLabelText(text) {
-  const safe = escapeHtml(text);
-  return safe.replace(
-    /(适合常买|偶尔少量|不建议常买|添加糖|蔗糖|果葡糖浆|麦芽糊精|精制碳水|钠|饱和脂肪|反式脂肪|膳食纤维|蛋白质|无糖|原味|高蛋白|低糖|控制份量)/g,
-    (match) => `<mark class="label-mark">${match}</mark>`,
-  );
 }
 
 function mealRisk(value) {
