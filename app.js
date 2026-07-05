@@ -256,6 +256,24 @@ function boundary() {
 }
 
 function render() {
+  const frame = document.querySelector('.app-frame');
+  if (frame) {
+    if (state.user && state.view === 'home') {
+      frame.classList.add('theme-nature');
+      if (!frame.querySelector('.leaf-spray')) {
+        const spray = document.createElement('div');
+        spray.className = 'leaf-spray';
+        spray.setAttribute('aria-hidden', 'true');
+        spray.innerHTML = '<span></span><span></span><span></span><span></span><span></span>';
+        frame.appendChild(spray);
+      }
+    } else {
+      frame.classList.remove('theme-nature');
+      const spray = frame.querySelector('.leaf-spray');
+      if (spray) spray.remove();
+    }
+  }
+
   if (!state.user) {
     app.innerHTML = `<section class="stack"><div class="hero-card"><p class="eyebrow">Welcome</p><h2>把异常指标变成今天能做到的一小步</h2><p class="muted">输入手机号后开始保存你的记录。</p></div></section>`;
     if (!registerDialog.open) registerDialog.showModal();
@@ -282,6 +300,20 @@ function renderHome() {
   const statusClass = daily.status === "completed" ? " completed" : "";
 
   return `
+    <header class="brand">
+      <div>
+        <p class="eyebrow">AI Metabolic Companion</p>
+        <div class="logo-row">
+          <span class="logo-mark"></span>
+          <h1 class="wordmark">GLUCOLIT</h1>
+        </div>
+      </div>
+      <button class="switch" type="button">
+        <svg class="swap-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"></path><path d="M3 6h18"></path><path d="M7 22l-4-4 4-4"></path><path d="M21 18H3"></path></svg>
+        <span>切换</span>
+      </button>
+    </header>
+
     <section class="stack">
       <div class="focus-card">
         <div class="hero-top">
@@ -295,6 +327,7 @@ function renderHome() {
           <div class="score-ring" aria-label="今日状态 82 分">
             <strong>82</strong>
             <span>稳住节奏</span>
+            <div class="score-dot"></div>
           </div>
           <div>
             <p class="focus-copy">餐后峰值偏高叠加睡眠不足。今天先完成峰值最高那餐后的轻走动，不需要重启完整计划。</p>
@@ -305,19 +338,35 @@ function renderHome() {
             </div>
           </div>
         </div>
-        <div class="focus-chart" aria-label="餐后血糖趋势">
-          <svg viewBox="0 0 320 126" role="img" aria-label="餐后血糖趋势">
-            <path class="focus-band" d="M0 72 H320 V102 H0 Z"></path>
-            <path class="focus-line" d="M16 86 C62 78, 86 42, 126 44 S192 92, 234 76 S284 55, 306 62"></path>
-            <circle class="focus-point coral" cx="126" cy="44" r="6"></circle>
-            <circle class="focus-point amber" cx="234" cy="76" r="6"></circle>
-            <circle class="focus-point mint" cx="306" cy="62" r="6"></circle>
+        <div class="chart-box" id="variant-three">
+          <div class="chart-meta"><span>近24小时血糖趋势 ⓘ</span><span>mmol/L</span></div>
+          <div class="axis-y"><span>15</span><span>12</span><span>9</span><span>6</span><span>3</span></div>
+          <svg viewBox="0 0 330 130" aria-hidden="true" preserveAspectRatio="none">
+            <path d="M36 91 C82 85, 120 50, 168 48 C204 46, 225 83, 242 83 C265 83, 285 73, 315 76 L315 115 L36 115 Z" fill="rgba(52, 145, 65, 0.12)"></path>
+            <path d="M36 91H315M36 74H315M36 56H315M36 39H315" stroke="rgba(97, 111, 95, 0.15)" stroke-dasharray="5 6"></path>
+            <path d="M36 91 C82 85, 120 50, 168 48 C204 46, 225 83, 242 83 C265 83, 285 73, 315 76" fill="none" stroke="#209a43" stroke-width="2.5" stroke-linecap="round"></path>
+            <circle cx="168" cy="48" r="5" fill="#f17724" stroke="#fff" stroke-width="2.5"></circle>
+            <circle cx="242" cy="83" r="5" fill="#79c829" stroke="#fff" stroke-width="2.5"></circle>
+            <circle cx="315" cy="76" r="5" fill="#09a746" stroke="#fff" stroke-width="2.5"></circle>
           </svg>
+          <div class="axis-x"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>
         </div>
-        <div class="signal-row">
-          <div><span>餐后峰值</span><strong>${metrics.glucoseTrend[1].value}</strong><small>mmol/L</small></div>
-          <div><span>睡眠</span><strong>${metrics.sleepHours}</strong><small>小时</small></div>
-          <div><span>未打卡</span><strong>${metrics.missedCheckinDays}</strong><small>天</small></div>
+        <div class="metric-grid">
+          <div class="metric-card">
+            <span>餐后峰值</span>
+            <strong>${metrics.glucoseTrend[1].value}</strong>
+            <em>mmol/L</em>
+          </div>
+          <div class="metric-card">
+            <span>睡眠</span>
+            <strong>${metrics.sleepHours}</strong>
+            <em>小时</em>
+          </div>
+          <div class="metric-card">
+            <span>未打卡</span>
+            <strong>${metrics.missedCheckinDays}</strong>
+            <em>天</em>
+          </div>
         </div>
       </div>
       <div class="card">
@@ -1923,6 +1972,22 @@ function loadingMarkup() {
 }
 
 function bindViewEvents() {
+  const switchBtn = document.querySelector(".app-frame.theme-nature .switch");
+  if (switchBtn) {
+    switchBtn.addEventListener("click", () => {
+      localStorage.removeItem("glucolit:user");
+      localStorage.removeItem("glucolit:session");
+      localStorage.removeItem("glucolit:devices");
+      state.user = null;
+      state.sessionToken = null;
+      state.appState = null;
+      state.connectedDevices = {};
+      state.devicePanelOpen = false;
+      clearSelectedImage();
+      render();
+    });
+  }
+
   document.querySelectorAll("[data-content-id]").forEach((button) => {
     button.addEventListener("click", () => {
       const content = state.appState?.content || { guides: [], articles: [] };
