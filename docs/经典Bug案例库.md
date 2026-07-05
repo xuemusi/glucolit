@@ -23,9 +23,27 @@
 | `test-gap` | 测试没覆盖用户可见行为 |
 | `product-acceptance` | 工程通过但产品体验不通过 |
 
+## 抽象模式层
+
+具体案例只回答“这次哪里坏了”。抽象模式要回答“以后哪里还会用同一种方式坏掉”。后续修 bug 或做新功能时，先查本节，再看下面的具体案例证据。
+
+| 模式 ID | 失败机制 | 不变量 | 早期信号 | 预防闸口 | 对应案例 |
+| --- | --- | --- | --- | --- | --- |
+| `P-ENV-VERIFY` | 本地、代码仓库、生产环境不是同一个事实源，任何一层都可能成功但用户仍看到旧结果。 | 用户验收必须基于生产事实，而不是本地通过或 Git 已推送。 | 用户说“我看还是旧的”、资源带版本号、CDN/Pages/浏览器缓存存在。 | 部署后生产 URL smoke，确认 HTML、JS/CSS 版本、关键 UI 文案和接口返回。 | `CACHE-001` |
+| `P-RESULT-SCHEMA` | AI 或后端直接吐自然语言，前端被迫展示字段堆，产品结构失控。 | 用户可见结果必须先有结构 schema，再接模型和数据。 | 结果页像 OCR 字段列表、长段文字、缺少标准对比和行动建议。 | 先定义信息架构、表格、风险等级、建议分区和折叠层级，再开发接口。 | `UI-001`, `AI-002` |
+| `P-STATE-SCOPE` | 多 tab、多工具、多模式共享状态，导致完成态、loading、结果和错误串台。 | 每个用户任务上下文都必须有独立状态槽。 | 页面有多个 tab/tool，但代码只有全局 `latestAnalysis`、`loading`、`error`。 | 技术方案先画状态模型，并补跨 tab 回归用例。 | `STATE-001` |
+| `P-LATENCY-BUDGET` | 外部模型/网络链路延迟没有基准，前端用拍脑袋超时误杀成功请求。 | 超时、loading 和降级策略必须由真实 P95/P99 耗时决定。 | 模型链路串联 OCR、视觉和叙述；本地短样例能过，真实图片慢。 | 上线前用真实样例测端到端耗时、首响应、阶段完成和最终完成。 | `AI-001` |
+| `P-AI-GUARDRAIL` | 模型输出被当成可靠专业结论，缺少规则层、禁用词和兜底结构。 | AI 输出只能作为候选表达，专业判断必须有规则和边界保护。 | 同图多模型结论差异大、出现绝对化健康建议、JSON 成功但内容不专业。 | schema + 规则计算 + 禁用词 + 默认建议 + 多模型质量样例。 | `AI-002` |
+| `P-CONFIG-OBSERVABLE` | 生产 Secret、供应商、模型名和 base URL 不透明，本地无法复现，线上只能猜。 | 外部依赖配置必须可观测、可验证，但不能泄露敏感值。 | 本地 401、线上能跑、返回结果看不出真实 provider/model。 | 文档记录非敏感配置，接口返回 model/provider 标记，生产 smoke 验证。 | `PROD-001` |
+| `P-CONCURRENT-TRUTH` | 多会话并发修改时，旧工作树和旧 UI 结构会把新改动覆盖掉。 | 修改前后的事实源必须是最新 main 和当前文件内容。 | 用户说“另一个会话改了”、同文件多人改、文档追加冲突。 | 开工前 fetch，提交前再 fetch，对同文件先读最新结构再 patch。 | `CONCURRENCY-001` |
+| `P-MOBILE-INTERACTION` | 移动端不是桌面缩小版，hover、tap highlight、热区和 active 态会暴露粗糙感。 | 核心移动交互必须可触、可见、不会粘滞。 | 桌面截图好看但手机点击发灰、hover 粘住、按钮小于 44px。 | 移动端真实触控验收，hover 包 media query，按钮热区标准化。 | `UI-002` |
+
+## 案例记录
+
 ## CACHE-001 前端代码已改但生产仍显示旧页面
 
 - Category: `production-cache`
+- Pattern: `P-ENV-VERIFY`
 - Area: 首页 / 餐盘结果 / 报告结果
 - Severity: P1
 
@@ -67,6 +85,7 @@ curl -fsSL "https://glucolit.xuemusi.com/?check=$(date +%s)" | rg "app.js\\?v=|s
 ## UI-001 用户截图发现排版不专业、内容像堆字段
 
 - Category: `ui-quality`, `product-acceptance`
+- Pattern: `P-RESULT-SCHEMA`
 - Area: 报告分析结果 / 餐盘结果 / 配料表结果
 - Severity: P0/P1
 
@@ -113,6 +132,7 @@ curl -fsSL "https://glucolit.xuemusi.com/?check=$(date +%s)" | rg "app.js\\?v=|s
 ## STATE-001 AI 工具 tab 切换后状态标签串台
 
 - Category: `state-management`, `test-gap`
+- Pattern: `P-STATE-SCOPE`
 - Area: AI 工具页
 - Severity: P1
 
@@ -154,6 +174,7 @@ curl -fsSL "https://glucolit.xuemusi.com/?check=$(date +%s)" | rg "app.js\\?v=|s
 ## AI-001 前端固定超时误杀慢模型成功请求
 
 - Category: `ai-model`, `test-gap`
+- Pattern: `P-LATENCY-BUDGET`
 - Area: 餐盘图片分析
 - Severity: P0
 
@@ -200,6 +221,7 @@ curl -fsSL "https://glucolit.xuemusi.com/?check=$(date +%s)" | rg "app.js\\?v=|s
 ## AI-002 模型输出不够专业，靠提示词无法保底
 
 - Category: `ai-model`, `ui-quality`
+- Pattern: `P-AI-GUARDRAIL`
 - Area: 报告解读 / 配料表 / 餐盘
 - Severity: P1
 
@@ -244,6 +266,7 @@ curl -fsSL "https://glucolit.xuemusi.com/?check=$(date +%s)" | rg "app.js\\?v=|s
 ## PROD-001 生产 Secret / 模型供应商配置不可见导致本地无法复现
 
 - Category: `deployment-config`, `observability`
+- Pattern: `P-CONFIG-OBSERVABLE`
 - Area: 模型供应商配置
 - Severity: P1
 
@@ -287,6 +310,7 @@ qwen3-vl-plus label OCR + gemini-3.1-flash-lite-preview
 ## CONCURRENCY-001 多会话并行修改同一页面导致冲突和回退风险
 
 - Category: `concurrency`
+- Pattern: `P-CONCURRENT-TRUTH`
 - Area: 行动页 / 首页 / 文档
 - Severity: P1
 
@@ -334,6 +358,7 @@ git status --short
 ## UI-002 移动端触控细节让产品显得粗糙
 
 - Category: `ui-quality`, `product-acceptance`
+- Pattern: `P-MOBILE-INTERACTION`
 - Area: 全局按钮 / 链接 / 卡片
 - Severity: P2
 
@@ -380,7 +405,7 @@ Playwright mobile + 手动触控检查：
 新需求或修 bug 前，先查本文件：
 
 ```bash
-rg "Category|Symptom|Prevention Checklist|Regression Test" docs/经典Bug案例库.md
+rg "P-|Pattern|Prevention Checklist|Regression Test" docs/经典Bug案例库.md
 ```
 
-如果发现相似案例，必须把对应 prevention checklist 加进本次技术方案或测试计划。
+如果发现相似模式，必须先回答这个模式的不变量是否会被本次改动破坏，再把对应 prevention checklist 加进本次技术方案或测试计划。
