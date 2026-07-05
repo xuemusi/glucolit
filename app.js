@@ -285,12 +285,10 @@ function renderHome() {
     <section class="stack">
       <div class="focus-card">
         <div class="hero-top">
-          <div>
-            <p class="eyebrow">今日健康概览</p>
-            <h2>早上好，今天稳一点</h2>
-          </div>
+          <p class="eyebrow">今日健康概览</p>
           <span class="status-pill${statusClass}">${statusLabels[daily.status]}</span>
         </div>
+        <h2>早上好，今天稳一点</h2>
         <div class="wellness-score">
           <div class="score-ring" aria-label="今日状态 82 分">
             <strong>82</strong>

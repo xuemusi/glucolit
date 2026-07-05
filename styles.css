@@ -3705,13 +3705,14 @@ textarea:focus,
   justify-content: space-between;
 }
 
-.app-frame .focus-card .hero-top h2 {
+.app-frame .focus-card h2 {
   color: #053d31;
   font-family: "Noto Serif SC", serif;
   font-size: 29px;
   font-weight: 800;
   letter-spacing: -0.6px;
-  margin: 8px 0 0;
+  margin: 12px 0 0;
+  white-space: nowrap;
 }
 
 .app-frame .focus-card .hero-top .eyebrow {
