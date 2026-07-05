@@ -289,17 +289,25 @@ function renderHome() {
           <span class="status-pill${statusClass}">${statusLabels[daily.status]}</span>
         </div>
         <h2>早上好，今天稳一点</h2>
+        <p class="focus-copy">餐后峰值偏高叠加睡眠不足。今天先完成峰值最高那餐后的轻走动，不需要重启完整计划。</p>
         <div class="wellness-score">
           <div class="score-ring" aria-label="今日状态 82 分">
             <strong>82</strong>
             <span>稳住节奏</span>
             <div class="score-dot"></div>
           </div>
-          <div>
-            <p class="focus-copy">餐后峰值偏高叠加睡眠不足。今天先完成峰值最高那餐后的轻走动，不需要重启完整计划。</p>
-            <div class="soft-checks" aria-label="今日记录摘要">
+          <div class="divider"></div>
+          <div class="soft-checks" aria-label="今日记录摘要">
+            <div>
+              <i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v8"></path><path d="M4.5 3v5.5A2.5 2.5 0 0 0 7 11a2.5 2.5 0 0 0 2.5-2.5V3"></path><path d="M7 11v10"></path><path d="M16 3v18"></path><path d="M16 3c2.4.7 4 3.1 4 6.5 0 2.4-1.5 4-4 4"></path></svg></i>
               <span>饮食 2/3 记录</span>
+            </div>
+            <div>
+              <i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.2 14.2A7.5 7.5 0 0 1 9.8 3.8 8.4 8.4 0 1 0 20.2 14.2Z"></path><path d="M16 8h.01"></path></svg></i>
               <span>睡眠 7.2 小时</span>
+            </div>
+            <div>
+              <i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="4.8" r="2"></circle><path d="M10.5 8.5 8.6 13l-2.8 2.2"></path><path d="m13.4 9.1 2.3 3.2 3.3.9"></path><path d="m10 13 3.3 2.4 1.2 4.1"></path><path d="m8.4 20 2.5-4.6"></path></svg></i>
               <span>运动 30 分钟</span>
             </div>
           </div>

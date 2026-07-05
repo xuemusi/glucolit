@@ -3735,15 +3735,18 @@ textarea:focus,
 
 /* 概览分数与圆环 */
 .app-frame .wellness-score {
-  grid-template-columns: 112px minmax(0, 1fr) !important;
+  grid-template-columns: 112px 1px minmax(0, 1fr) !important;
   gap: 16px !important;
   margin: 17px 0 14px !important;
+  align-items: center !important;
 }
 
 .app-frame .score-ring {
   width: 112px !important;
   height: 112px !important;
   position: relative;
+  background: conic-gradient(#42aa49 0 82%, #e4efe6 82% 100%) !important;
+  box-shadow: 0 14px 24px rgba(38, 132, 73, 0.16) !important;
 }
 
 .app-frame .score-ring::after {
@@ -3760,6 +3763,13 @@ textarea:focus,
   margin-top: 6px !important;
   font-size: 14px !important;
   color: #526b5c !important;
+}
+
+/* 竖直分割线 */
+.app-frame .focus-card .divider {
+  width: 1px;
+  height: 70px;
+  background: rgba(118, 132, 111, 0.24);
 }
 
 /* 圆环终点圆点指示器 */
@@ -3780,7 +3790,7 @@ textarea:focus,
 }
 
 .app-frame .focus-copy {
-  margin-top: 0 !important;
+  margin-top: 12px !important;
   color: #1f2e2b !important;
   font-size: 14px !important;
   font-weight: 500 !important;
@@ -3788,25 +3798,42 @@ textarea:focus,
 }
 
 .app-frame .soft-checks {
-  margin-top: 9px !important;
+  margin-top: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
   gap: 9px !important;
+}
+
+.app-frame .soft-checks span::before {
+  display: none !important;
 }
 
 .app-frame .soft-checks span {
   color: #1f2e2a !important;
   font-size: 14px !important;
   font-weight: 600 !important;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  padding-left: 0 !important;
 }
 
-.app-frame .soft-checks span::before {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #2f9d53;
+.app-frame .soft-checks div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-frame .soft-checks i {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(226, 241, 213, 0.92);
+  color: #2d7747;
+}
+
+.app-frame .soft-checks svg {
+  width: 17px;
+  height: 17px;
 }
 
 /* 血糖趋势图表卡片 */
