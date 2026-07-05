@@ -3750,19 +3750,27 @@ textarea:focus,
 }
 
 .app-frame .score-ring::after {
+  content: "" !important;
+  position: absolute !important;
   inset: 10px !important;
+  border-radius: 50% !important;
   background: rgba(255, 254, 246, 0.94) !important;
+  z-index: 0 !important;
 }
 
 .app-frame .score-ring strong {
   font-size: 42px !important;
   color: #073e31 !important;
+  position: relative !important;
+  z-index: 1 !important;
 }
 
 .app-frame .score-ring span {
   margin-top: 6px !important;
   font-size: 14px !important;
   color: #526b5c !important;
+  position: relative !important;
+  z-index: 1 !important;
 }
 
 /* 竖直分割线 */
