@@ -255,6 +255,73 @@ function boundary() {
   return `<p class="medical-boundary">本产品用于健康教育与生活方式行为支持，不替代医生诊断和治疗。如报告指标异常或身体不适，请及时咨询专业医生。</p>`;
 }
 
+function generateGlucoseChartSvg(glucoseTrend) {
+  if (!glucoseTrend || glucoseTrend.length === 0) {
+    return `
+      <svg viewBox="0 0 330 130" aria-hidden="true" preserveAspectRatio="none">
+        <path d="M36 91H315M36 74H315M36 56H315M36 39H315" stroke="rgba(97, 111, 95, 0.15)" stroke-dasharray="5 6"></path>
+      </svg>
+    `;
+  }
+
+  // 复制并排序
+  const points = [...glucoseTrend].sort((a, b) => a.time.localeCompare(b.time));
+
+  // 补齐 00:00 和 24:00，以让折线横跨整个图表宽度
+  if (points[0].time !== "00:00") {
+    points.unshift({ time: "00:00", value: points[0].value });
+  }
+  if (points[points.length - 1].time !== "24:00") {
+    points.push({ time: "24:00", value: points[points.length - 1].value });
+  }
+
+  // 时间 (HH:MM) 映射到 X 轴坐标 (36px - 315px)
+  const getX = (timeStr) => {
+    const [h, m] = timeStr.split(":").map(Number);
+    const mins = h * 60 + m;
+    return 36 + (mins / 1440) * 279;
+  };
+
+  // 血糖值 (3.0 - 13.9) 映射到 Y 轴坐标 (108.3px - 39px)
+  const getY = (val) => {
+    const clampedVal = Math.min(13.9, Math.max(3, val));
+    return 108.3 - ((clampedVal - 3) / 10.9) * 69.3;
+  };
+
+  // 计算所有点的坐标
+  const coords = points.map(p => ({ x: getX(p.time), y: getY(p.value) }));
+
+  // 构造折线与底座阴影路径
+  const linePath = coords.map((c, i) => `${i === 0 ? 'M' : 'L'}${c.x.toFixed(1)} ${c.y.toFixed(1)}`).join(" ");
+  const areaPath = `${linePath} L${coords[coords.length - 1].x.toFixed(1)} 115 L${coords[0].x.toFixed(1)} 115 Z`;
+
+  // 决定数据圆点渲染（仅绘制原始数据点，排除补齐的首尾端点）
+  const origValues = glucoseTrend.map(p => p.value);
+  const maxVal = Math.max(...origValues);
+  const minVal = Math.min(...origValues);
+
+  const circlesHtml = glucoseTrend.map(p => {
+    const cx = getX(p.time);
+    const cy = getY(p.value);
+    let color = "#09a746"; // 默认常规深绿
+    if (p.value === maxVal) {
+      color = "#f17724"; // 最大值使用橙色
+    } else if (p.value === minVal) {
+      color = "#79c829"; // 最小值使用亮绿
+    }
+    return `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="5" fill="${color}" stroke="#fff" stroke-width="2.5"></circle>`;
+  }).join("");
+
+  return `
+    <svg viewBox="0 0 330 130" aria-hidden="true" preserveAspectRatio="none">
+      <path d="${areaPath}" fill="rgba(52, 145, 65, 0.12)"></path>
+      <path d="M36 91H315M36 74H315M36 56H315M36 39H315" stroke="rgba(97, 111, 95, 0.15)" stroke-dasharray="5 6"></path>
+      <path d="${linePath}" fill="none" stroke="#209a43" stroke-width="2.5" stroke-linecap="round"></path>
+      ${circlesHtml}
+    </svg>
+  `;
+}
+
 function render() {
   if (!state.user) {
     app.innerHTML = `<section class="stack"><div class="hero-card"><p class="eyebrow">Welcome</p><h2>把异常指标变成今天能做到的一小步</h2><p class="muted">输入手机号后开始保存你的记录。</p></div></section>`;
@@ -314,21 +381,14 @@ function renderHome() {
         </div>
         <div class="chart-box" id="variant-three">
           <div class="chart-meta"><span>近24小时血糖趋势 ⓘ</span><span>mmol/L</span></div>
-          <div class="axis-y"><span>15</span><span>12</span><span>9</span><span>6</span><span>3</span></div>
-          <svg viewBox="0 0 330 130" aria-hidden="true" preserveAspectRatio="none">
-            <path d="M36 91 C82 85, 120 50, 168 48 C204 46, 225 83, 242 83 C265 83, 285 73, 315 76 L315 115 L36 115 Z" fill="rgba(52, 145, 65, 0.12)"></path>
-            <path d="M36 91H315M36 74H315M36 56H315M36 39H315" stroke="rgba(97, 111, 95, 0.15)" stroke-dasharray="5 6"></path>
-            <path d="M36 91 C82 85, 120 50, 168 48 C204 46, 225 83, 242 83 C265 83, 285 73, 315 76" fill="none" stroke="#209a43" stroke-width="2.5" stroke-linecap="round"></path>
-            <circle cx="168" cy="48" r="5" fill="#f17724" stroke="#fff" stroke-width="2.5"></circle>
-            <circle cx="242" cy="83" r="5" fill="#79c829" stroke="#fff" stroke-width="2.5"></circle>
-            <circle cx="315" cy="76" r="5" fill="#09a746" stroke="#fff" stroke-width="2.5"></circle>
-          </svg>
+          <div class="axis-y"><span>13.9</span><span>11.1</span><span>8.5</span><span>5.8</span><span>3</span></div>
+          ${generateGlucoseChartSvg(metrics.glucoseTrend)}
           <div class="axis-x"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>
         </div>
         <div class="metric-grid">
           <div class="metric-card">
             <span>餐后峰值</span>
-            <strong>${metrics.glucoseTrend[1].value}</strong>
+            <strong${metrics.glucoseTrend[1].value > 7.8 ? ' style="color: #e53e3e !important;"' : ''}>${metrics.glucoseTrend[1].value}</strong>
             <em>mmol/L</em>
           </div>
           <div class="metric-card">
