@@ -77,37 +77,28 @@ textarea:focus,
   min-height: 100vh;
   overflow: hidden;
   background:
-    linear-gradient(180deg, rgba(255, 253, 247, 0.96), rgba(247, 250, 241, 0.98)),
-    var(--app);
+    linear-gradient(180deg, rgba(255, 253, 242, 0.18), rgba(242, 249, 232, 0.16)),
+    url("docs/assets/glucolit-v3-nature-bg.png") top center / 100% auto no-repeat,
+    linear-gradient(180deg, #fbfaf0 0, #eaf5dc 76%, #c5e3ce 100%) !important;
+  color: #083e31 !important;
+  font-family: "Noto Serif SC", "Source Han Serif SC", "Source Han Serif CN", "Songti SC", STSong, serif !important;
   box-shadow: var(--shadow);
 }
 
 .app-frame::before {
-  content: "";
-  position: absolute;
-  top: 92px;
-  right: -24px;
-  width: 130px;
-  height: 190px;
-  opacity: 0.17;
-  background:
-    linear-gradient(96deg, transparent 47%, var(--sage) 47% 50%, transparent 50%),
-    linear-gradient(135deg, transparent 0 42%, rgba(122, 167, 131, 0.75) 42% 48%, transparent 48%),
-    linear-gradient(45deg, transparent 0 45%, rgba(69, 118, 93, 0.64) 45% 51%, transparent 51%);
-  transform: rotate(-9deg);
-  pointer-events: none;
-  z-index: 0;
+  display: none !important;
 }
 
 .app-header {
   position: relative;
+  z-index: 2;
+  padding: 32px 22px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 20px 22px 14px;
-  border-bottom: 1px solid rgba(200, 217, 204, 0.66);
-  background: rgba(255, 253, 247, 0.88);
+  background: transparent !important;
+  border-bottom: none !important;
+}
   backdrop-filter: blur(18px);
   z-index: 2;
 }
@@ -134,15 +125,7 @@ textarea:focus,
 }
 
 .app-header h1::before {
-  content: "";
-  display: inline-block;
-  width: 11px;
-  height: 24px;
-  margin-right: 10px;
-  border-radius: 999px 999px 999px 2px;
-  background: linear-gradient(180deg, #8bcda5, var(--teal));
-  box-shadow: 0 6px 16px rgba(13, 108, 97, 0.2);
-  vertical-align: -4px;
+  display: none !important;
 }
 
 .eyebrow {
@@ -196,18 +179,7 @@ textarea:focus,
 }
 
 .hero-card::after {
-  content: "";
-  position: absolute;
-  right: 12px;
-  bottom: 8px;
-  width: 96px;
-  height: 70px;
-  opacity: 0.16;
-  background:
-    linear-gradient(100deg, transparent 47%, var(--sage-deep) 47% 50%, transparent 50%),
-    linear-gradient(142deg, transparent 0 45%, var(--sage) 45% 50%, transparent 50%),
-    linear-gradient(48deg, transparent 0 45%, var(--sage) 45% 50%, transparent 50%);
-  pointer-events: none;
+  display: none !important;
 }
 
 .hero-card h2,
@@ -3653,36 +3625,8 @@ textarea:focus,
    V3 自然场景主题样式 (V3 Nature Scene Theme)
    ========================================== */
 
-/* 全局与面板背景 */
-.app-frame.theme-nature {
-  background:
-    linear-gradient(180deg, rgba(255, 253, 242, 0.18), rgba(242, 249, 232, 0.16)),
-    url("docs/assets/glucolit-v3-nature-bg.png") top center / 100% auto no-repeat,
-    linear-gradient(180deg, #fbfaf0 0, #eaf5dc 76%, #c5e3ce 100%) !important;
-  color: #083e31 !important;
-  font-family: "Noto Serif SC", "Source Han Serif SC", "Source Han Serif CN", "Songti SC", STSong, serif !important;
-}
-
-/* 隐藏原有背景的米字阴影 */
-.theme-nature::before {
-  display: none !important;
-}
-
-/* 隐藏原有头部，使用新版头部 */
-.theme-nature .app-header {
-  display: none !important;
-}
-
-.theme-nature .brand {
-  position: relative;
-  z-index: 2;
-  padding: 32px 22px 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.theme-nature .brand .eyebrow {
+/* 全局头部样式升级 */
+.app-header .eyebrow {
   color: #064935;
   font-size: 10px;
   font-weight: 800;
@@ -3690,14 +3634,14 @@ textarea:focus,
   margin: 0;
 }
 
-.theme-nature .brand .logo-row {
+.app-header .logo-row {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-top: 4px;
 }
 
-.theme-nature .brand .logo-mark {
+.app-header .logo-mark {
   width: 12px;
   height: 28px;
   border-radius: 999px 999px 999px 3px;
@@ -3705,7 +3649,7 @@ textarea:focus,
   box-shadow: 0 6px 14px rgba(29, 120, 77, 0.18);
 }
 
-.theme-nature .brand .wordmark {
+.app-header .wordmark {
   color: #073a2f;
   font-family: "Noto Serif SC", serif;
   font-size: 31px;
@@ -3715,7 +3659,7 @@ textarea:focus,
   margin: 0;
 }
 
-.theme-nature .brand .switch {
+.app-header .switch {
   min-width: 84px;
   min-height: 40px;
   border: 1px solid rgba(105, 153, 119, 0.18);
@@ -3733,13 +3677,13 @@ textarea:focus,
   cursor: pointer;
 }
 
-.theme-nature .brand .switch svg {
+.app-header .switch svg {
   width: 14px;
   height: 14px;
 }
 
 /* 概览主卡片 */
-.theme-nature .focus-card {
+.app-frame .focus-card {
   margin: 6px 0 12px !important;
   padding: 18px 20px 16px;
   border: 1px solid rgba(112, 153, 107, 0.22) !important;
@@ -3751,17 +3695,17 @@ textarea:focus,
   backdrop-filter: blur(4px);
 }
 
-.theme-nature .focus-card::before {
+.app-frame .focus-card::before {
   display: none !important; /* 隐藏原本的叶子遮罩 */
 }
 
-.theme-nature .focus-card .hero-top {
+.app-frame .focus-card .hero-top {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
 }
 
-.theme-nature .focus-card .hero-top h2 {
+.app-frame .focus-card .hero-top h2 {
   color: #053d31;
   font-family: "Noto Serif SC", serif;
   font-size: 29px;
@@ -3770,14 +3714,14 @@ textarea:focus,
   margin: 8px 0 0;
 }
 
-.theme-nature .focus-card .hero-top .eyebrow {
+.app-frame .focus-card .hero-top .eyebrow {
   color: #174a37;
   font-size: 13px;
   font-weight: 800;
   margin: 0;
 }
 
-.theme-nature .focus-card .status-pill {
+.app-frame .focus-card .status-pill {
   min-height: 28px;
   border: 1px solid rgba(230, 128, 34, 0.22) !important;
   background: rgba(255, 243, 211, 0.82) !important;
@@ -3789,36 +3733,36 @@ textarea:focus,
 }
 
 /* 概览分数与圆环 */
-.theme-nature .wellness-score {
+.app-frame .wellness-score {
   grid-template-columns: 112px minmax(0, 1fr) !important;
   gap: 16px !important;
   margin: 17px 0 14px !important;
 }
 
-.theme-nature .score-ring {
+.app-frame .score-ring {
   width: 112px !important;
   height: 112px !important;
   position: relative;
 }
 
-.theme-nature .score-ring::after {
+.app-frame .score-ring::after {
   inset: 10px !important;
   background: rgba(255, 254, 246, 0.94) !important;
 }
 
-.theme-nature .score-ring strong {
+.app-frame .score-ring strong {
   font-size: 42px !important;
   color: #073e31 !important;
 }
 
-.theme-nature .score-ring span {
+.app-frame .score-ring span {
   margin-top: 6px !important;
   font-size: 14px !important;
   color: #526b5c !important;
 }
 
 /* 圆环终点圆点指示器 */
-.theme-nature .score-dot {
+.app-frame .score-dot {
   position: absolute;
   width: 12px;
   height: 12px;
@@ -3834,7 +3778,7 @@ textarea:focus,
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
-.theme-nature .focus-copy {
+.app-frame .focus-copy {
   margin-top: 0 !important;
   color: #1f2e2b !important;
   font-size: 14px !important;
@@ -3842,12 +3786,12 @@ textarea:focus,
   line-height: 1.7 !important;
 }
 
-.theme-nature .soft-checks {
+.app-frame .soft-checks {
   margin-top: 9px !important;
   gap: 9px !important;
 }
 
-.theme-nature .soft-checks span {
+.app-frame .soft-checks span {
   color: #1f2e2a !important;
   font-size: 14px !important;
   font-weight: 600 !important;
@@ -3856,7 +3800,7 @@ textarea:focus,
   gap: 6px;
 }
 
-.theme-nature .soft-checks span::before {
+.app-frame .soft-checks span::before {
   content: "";
   width: 6px;
   height: 6px;
@@ -3865,7 +3809,7 @@ textarea:focus,
 }
 
 /* 血糖趋势图表卡片 */
-.theme-nature .chart-box {
+.app-frame .chart-box {
   position: relative;
   overflow: hidden;
   height: 142px !important;
@@ -3876,7 +3820,7 @@ textarea:focus,
   margin: 12px 0 12px;
 }
 
-.theme-nature .chart-meta {
+.app-frame .chart-meta {
   position: absolute;
   left: 13px;
   right: 13px;
@@ -3888,8 +3832,8 @@ textarea:focus,
   font-weight: 600;
 }
 
-.theme-nature .axis-y,
-.theme-nature .axis-x {
+.app-frame .axis-y,
+.app-frame .axis-x {
   position: absolute;
   color: #2b3331;
   font-size: 11px;
@@ -3912,21 +3856,21 @@ textarea:focus,
   justify-content: space-between !important;
 }
 
-.theme-nature .chart-box svg {
+.app-frame .chart-box svg {
   width: 100%;
   height: 100%;
   display: block;
 }
 
 /* 三格卡片 Grid */
-.theme-nature .metric-grid {
+.app-frame .metric-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   margin-top: 10px;
 }
 
-.theme-nature .metric-card {
+.app-frame .metric-card {
   height: 74px;
   padding: 11px 8px 10px;
   border: none !important;
@@ -3937,15 +3881,15 @@ textarea:focus,
   overflow: hidden;
 }
 
-.theme-nature .metric-card:nth-child(2) {
+.app-frame .metric-card:nth-child(2) {
   background: #f4f4fa !important;
 }
 
-.theme-nature .metric-card:nth-child(3) {
+.app-frame .metric-card:nth-child(3) {
   background: #fdf8f0 !important;
 }
 
-.theme-nature .metric-card::before {
+.app-frame .metric-card::before {
   content: "";
   position: absolute;
   left: 0;
@@ -3958,26 +3902,26 @@ textarea:focus,
   pointer-events: none;
 }
 
-.theme-nature .metric-card:nth-child(1)::before {
+.app-frame .metric-card:nth-child(1)::before {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 30' preserveAspectRatio='none'%3E%3Cpath d='M0,15 C30,5 70,25 100,10 L100,30 L0,30 Z' fill='rgba%2847, 157, 83, 0.12%29'/%3E%3C/svg%3E");
 }
 
-.theme-nature .metric-card:nth-child(2)::before {
+.app-frame .metric-card:nth-child(2)::before {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 30' preserveAspectRatio='none'%3E%3Cpath d='M0,15 C30,25 70,5 100,15 L100,30 L0,30 Z' fill='rgba%2888, 101, 242, 0.08%29'/%3E%3C/svg%3E");
 }
 
-.theme-nature .metric-card:nth-child(3)::before {
+.app-frame .metric-card:nth-child(3)::before {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 30' preserveAspectRatio='none'%3E%3Cpath d='M0,10 C40,25 60,5 100,15 L100,30 L0,30 Z' fill='rgba%28244, 154, 23, 0.1%29'/%3E%3C/svg%3E");
 }
 
-.theme-nature .metric-card span,
-.theme-nature .metric-card strong,
-.theme-nature .metric-card em {
+.app-frame .metric-card span,
+.app-frame .metric-card strong,
+.app-frame .metric-card em {
   position: relative;
   z-index: 1;
 }
 
-.theme-nature .metric-card span {
+.app-frame .metric-card span {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -3988,7 +3932,7 @@ textarea:focus,
   margin-bottom: 2px;
 }
 
-.theme-nature .metric-card strong {
+.app-frame .metric-card strong {
   display: inline-block;
   margin-top: 4px;
   color: #073e31;
@@ -3998,7 +3942,7 @@ textarea:focus,
   line-height: 1;
 }
 
-.theme-nature .metric-card em {
+.app-frame .metric-card em {
   display: block;
   margin-left: 0;
   margin-top: 2px;
@@ -4010,18 +3954,18 @@ textarea:focus,
 }
 
 /* 今日提醒卡片优化 */
-.theme-nature .warning-list strong {
+.app-frame .warning-list strong {
   font-size: 1.05rem !important;
   color: #064935 !important;
 }
 
-.theme-nature .warning-list em {
+.app-frame .warning-list em {
   color: #2f9d53 !important;
   font-weight: 700 !important;
   font-size: 0.82rem !important;
 }
 
-.theme-nature .panel-header .ghost-button {
+.app-frame .panel-header .ghost-button {
   min-height: 32px;
   padding: 0 15px;
   border: 1px solid rgba(47, 157, 83, 0.25) !important;
@@ -4034,7 +3978,7 @@ textarea:focus,
 }
 
 /* 拍照分析等其它模块的卡片 */
-.theme-nature .card {
+.app-frame .card {
   border: 1px solid rgba(112, 153, 107, 0.18) !important;
   background: rgba(255, 255, 253, 0.82) !important;
   border-radius: 18px !important;
@@ -4042,13 +3986,13 @@ textarea:focus,
 }
 
 /* 底部导航栏与激活状态药丸效果 */
-.theme-nature .bottom-nav {
+.app-frame .bottom-nav {
   background: rgba(255, 255, 255, 0.95) !important;
   border: 1px solid rgba(111, 135, 113, 0.14) !important;
   box-shadow: 0 -10px 30px rgba(41, 66, 53, 0.05) !important;
 }
 
-.theme-nature .nav-button.active {
+.app-frame .nav-button.active {
   background: #134d37 !important;
   color: white !important;
   box-shadow: 0 6px 14px rgba(19, 77, 55, 0.22) !important;
@@ -4056,18 +4000,18 @@ textarea:focus,
 }
 
 /* 硬件接入悬浮按钮色彩调和 */
-.theme-nature .device-orb {
+.app-frame .device-orb {
   border: 1px solid rgba(19, 77, 55, 0.15) !important;
   box-shadow: 0 8px 24px rgba(19, 77, 55, 0.12), 0 2px 6px rgba(0, 0, 0, 0.06) !important;
 }
 
-.theme-nature .device-orb-pulse-ring,
-.theme-nature .device-orb-pulse-ring2 {
+.app-frame .device-orb-pulse-ring,
+.app-frame .device-orb-pulse-ring2 {
   border: 1px solid rgba(47, 157, 83, 0.45) !important;
 }
 
 /* 绿叶喷绘背景 */
-.theme-nature .leaf-spray {
+.app-frame .leaf-spray {
   position: absolute;
   top: 0;
   left: 0;

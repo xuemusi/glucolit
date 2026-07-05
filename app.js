@@ -256,24 +256,6 @@ function boundary() {
 }
 
 function render() {
-  const frame = document.querySelector('.app-frame');
-  if (frame) {
-    if (state.user && state.view === 'home') {
-      frame.classList.add('theme-nature');
-      if (!frame.querySelector('.leaf-spray')) {
-        const spray = document.createElement('div');
-        spray.className = 'leaf-spray';
-        spray.setAttribute('aria-hidden', 'true');
-        spray.innerHTML = '<span></span><span></span><span></span><span></span><span></span>';
-        frame.appendChild(spray);
-      }
-    } else {
-      frame.classList.remove('theme-nature');
-      const spray = frame.querySelector('.leaf-spray');
-      if (spray) spray.remove();
-    }
-  }
-
   if (!state.user) {
     app.innerHTML = `<section class="stack"><div class="hero-card"><p class="eyebrow">Welcome</p><h2>把异常指标变成今天能做到的一小步</h2><p class="muted">输入手机号后开始保存你的记录。</p></div></section>`;
     if (!registerDialog.open) registerDialog.showModal();
@@ -300,20 +282,6 @@ function renderHome() {
   const statusClass = daily.status === "completed" ? " completed" : "";
 
   return `
-    <header class="brand">
-      <div>
-        <p class="eyebrow">AI Metabolic Companion</p>
-        <div class="logo-row">
-          <span class="logo-mark"></span>
-          <h1 class="wordmark">GLUCOLIT</h1>
-        </div>
-      </div>
-      <button class="switch" type="button">
-        <svg class="swap-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"></path><path d="M3 6h18"></path><path d="M7 22l-4-4 4-4"></path><path d="M21 18H3"></path></svg>
-        <span>切换</span>
-      </button>
-    </header>
-
     <section class="stack">
       <div class="focus-card">
         <div class="hero-top">
@@ -1972,22 +1940,6 @@ function loadingMarkup() {
 }
 
 function bindViewEvents() {
-  const switchBtn = document.querySelector(".app-frame.theme-nature .switch");
-  if (switchBtn) {
-    switchBtn.addEventListener("click", () => {
-      localStorage.removeItem("glucolit:user");
-      localStorage.removeItem("glucolit:session");
-      localStorage.removeItem("glucolit:devices");
-      state.user = null;
-      state.sessionToken = null;
-      state.appState = null;
-      state.connectedDevices = {};
-      state.devicePanelOpen = false;
-      clearSelectedImage();
-      render();
-    });
-  }
-
   document.querySelectorAll("[data-content-id]").forEach((button) => {
     button.addEventListener("click", () => {
       const content = state.appState?.content || { guides: [], articles: [] };
